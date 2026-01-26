@@ -717,8 +717,9 @@ Behaviors: ${prevBehaviors} → ${newBehaviors}
           content: [{ type: 'text', content: reconfigureMessage }],
           timestamp: new Date(),
         });
-      } else {
+      } else if (!config.resumeSessionId) {
         // Clear previous session's messages and sub-sessions
+        // (but NOT when resuming - messages were already loaded by handleResumeSession)
         clearMessages();
         clearSubSessions();
       }
