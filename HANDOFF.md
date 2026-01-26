@@ -348,8 +348,7 @@ amplifier-web/
 1. **Single-user model:** Each server instance serves one user
 2. **Self-signed certificates:** Browser warnings expected
 3. **Amplifier dependency:** Requires amplifier-core and amplifier-foundation packages
-4. **Working directory:** Not all amplifier modules support configurable cwd
-5. **Session reconfigure:** Experimental, may lose some context
+4. **Session reconfigure:** Experimental, may lose some context
 
 ---
 

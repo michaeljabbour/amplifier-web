@@ -350,32 +350,35 @@ amplifier-web/
 └── README.md
 ```
 
-## Key Features to Implement
+## Implemented Features
 
-### Phase 1: Core Chat Experience
+### Core Chat Experience
 - [x] Bundle loading from foundation
-- [ ] WebSocket streaming for text responses
-- [ ] Basic chat UI with markdown rendering
-- [ ] Session persistence (transcript.jsonl)
+- [x] WebSocket streaming for text responses
+- [x] Basic chat UI with markdown rendering
+- [x] Session persistence (transcript.jsonl)
+- [x] Session resume with history restoration
 
-### Phase 2: Tool Integration
-- [ ] Tool call display with arguments
-- [ ] Approval modal with timeout countdown
-- [ ] Tool result rendering
-- [ ] "Allow always" caching
+### Tool Integration
+- [x] Tool call display with arguments
+- [x] Approval modal with timeout countdown
+- [x] Tool result rendering
+- [x] "Allow always" caching
 
-### Phase 3: Advanced Features
+### Advanced Features
+- [x] Thinking block disclosure (toggle)
+- [x] Image paste/upload support
+- [x] Raw LLM event visibility (debug/raw_debug)
 - [ ] Slash commands (/mode, /status, /tools, etc.)
 - [ ] Mode switching with visual indicator
 - [ ] Sub-session nesting (visual indentation)
-- [ ] Thinking block disclosure (toggle)
-- [ ] Image paste/upload support
 
-### Phase 4: Configuration
-- [ ] Bundle selector UI
+### Configuration
+- [x] Bundle selector UI
+- [x] Session history browser
+- [x] Active session indicators
 - [ ] Behavior composition UI
-- [ ] Provider configuration
-- [ ] Session history browser
+- [ ] Provider configuration UI
 
 ## Bundle Integration Example
 

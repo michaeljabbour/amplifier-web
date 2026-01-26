@@ -1,3 +1,13 @@
+> **⚠️ HISTORICAL DOCUMENT**
+> 
+> This document captures the original planning for amplifier-web. It is preserved for historical reference only.
+> The actual implementation may differ significantly. For current documentation, see:
+> - [README.md](../../README.md) - Quick start and overview
+> - [ARCHITECTURE.md](../../ARCHITECTURE.md) - Technical architecture
+> - [HANDOFF.md](../../HANDOFF.md) - Developer handoff notes
+
+---
+
 # Custom Bundle Support for Amplifier Web
 
 ## Goal

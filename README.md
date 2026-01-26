@@ -117,8 +117,11 @@ The frontend communicates with the backend via WebSocket for real-time updates.
 ### Client → Server Messages
 
 ```typescript
-// Create session
+// Create new session
 { type: "create_session", config: { bundle: "foundation", behaviors: ["streaming-ui"] } }
+
+// Resume existing session (restores conversation history)
+{ type: "create_session", config: { bundle: "foundation", resume_session_id: "abc123" } }
 
 // Send prompt
 { type: "prompt", content: "Help me debug this code", images?: ["base64..."] }
