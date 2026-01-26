@@ -18,7 +18,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from .bundle_manager import BundleManager
-from .protocols import WebApprovalSystem, WebDisplaySystem, WebStreamingHook, WebSpawnManager
+from .protocols import (
+    WebApprovalSystem,
+    WebDisplaySystem,
+    WebStreamingHook,
+    WebSpawnManager,
+)
 
 if TYPE_CHECKING:
     from fastapi import WebSocket
@@ -30,6 +35,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SessionMetadata:
     """Metadata for an active or saved session."""
+
     session_id: str
     bundle_name: str
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -51,6 +57,7 @@ class ActiveSession:
     - The AmplifierSession (created lazily on first execute)
     - Web protocol implementations (display, approval, streaming hook)
     """
+
     session_id: str
     websocket: "WebSocket"
     metadata: SessionMetadata
@@ -126,7 +133,9 @@ class SessionManager:
             RuntimeError: If bundle loading or session creation fails
         """
         session_id = session_id or str(uuid.uuid4())[:16]
-        self._pending_transcript: dict[str, list[dict[str, Any]]] = getattr(self, '_pending_transcript', {})
+        self._pending_transcript: dict[str, list[dict[str, Any]]] = getattr(
+            self, "_pending_transcript", {}
+        )
         if initial_transcript:
             self._pending_transcript[session_id] = initial_transcript
 
@@ -165,13 +174,15 @@ class SessionManager:
         self._active[session_id] = active
 
         # Notify browser
-        await websocket.send_json({
-            "type": "session_created",
-            "session_id": session_id,
-            "bundle": bundle_name,
-            "behaviors": behaviors or [],
-            "cwd": str(session_cwd) if session_cwd else None,
-        })
+        await websocket.send_json(
+            {
+                "type": "session_created",
+                "session_id": session_id,
+                "bundle": bundle_name,
+                "behaviors": behaviors or [],
+                "cwd": str(session_cwd) if session_cwd else None,
+            }
+        )
 
         # Send debug info about the bundle configuration
         await self._send_bundle_debug_info(websocket, prepared, bundle_name, behaviors)
@@ -215,58 +226,92 @@ class SessionManager:
             # This ensures we capture everything that makes it to events.jsonl
             try:
                 from amplifier_core.events import ALL_EVENTS
+
                 events_to_capture = list(ALL_EVENTS)
             except ImportError:
                 # Fallback to essential events if import fails
-                logger.warning("Could not import ALL_EVENTS from amplifier_core.events, using fallback list")
+                logger.warning(
+                    "Could not import ALL_EVENTS from amplifier_core.events, using fallback list"
+                )
                 events_to_capture = [
-                    "content_block:start", "content_block:delta", "content_block:end",
-                    "thinking:delta", "thinking:final",
-                    "tool:pre", "tool:post", "tool:error",
-                    "session:start", "session:end", "session:fork", "session:resume",
-                    "prompt:submit", "prompt:complete",
-                    "provider:request", "provider:response", "provider:error",
-                    "llm:request", "llm:request:debug", "llm:request:raw",
-                    "llm:response", "llm:response:debug", "llm:response:raw",
-                    "cancel:requested", "cancel:completed",
-                    "user:notification", "context:compaction",
-                    "plan:start", "plan:end",
-                    "artifact:write", "artifact:read",
-                    "approval:required", "approval:granted", "approval:denied",
+                    "content_block:start",
+                    "content_block:delta",
+                    "content_block:end",
+                    "thinking:delta",
+                    "thinking:final",
+                    "tool:pre",
+                    "tool:post",
+                    "tool:error",
+                    "session:start",
+                    "session:end",
+                    "session:fork",
+                    "session:resume",
+                    "prompt:submit",
+                    "prompt:complete",
+                    "provider:request",
+                    "provider:response",
+                    "provider:error",
+                    "llm:request",
+                    "llm:request:debug",
+                    "llm:request:raw",
+                    "llm:response",
+                    "llm:response:debug",
+                    "llm:response:raw",
+                    "cancel:requested",
+                    "cancel:completed",
+                    "user:notification",
+                    "context:compaction",
+                    "plan:start",
+                    "plan:end",
+                    "artifact:write",
+                    "artifact:read",
+                    "approval:required",
+                    "approval:granted",
+                    "approval:denied",
                 ]
 
             # Also try to get auto-discovered module events
-            discovered_events = session.coordinator.get_capability("observability.events") or []
+            discovered_events = (
+                session.coordinator.get_capability("observability.events") or []
+            )
             if discovered_events:
                 events_to_capture.extend(discovered_events)
-                logger.info(f"Auto-discovered {len(discovered_events)} additional module events")
+                logger.info(
+                    f"Auto-discovered {len(discovered_events)} additional module events"
+                )
 
             for event in events_to_capture:
                 hook_registry.register(
                     event=event,
                     handler=active.streaming_hook,
                     priority=100,  # Run early to capture events
-                    name=f"web-streaming:{event}"
+                    name=f"web-streaming:{event}",
                 )
-            logger.info(f"Registered web streaming hook for {len(events_to_capture)} events")
+            logger.info(
+                f"Registered web streaming hook for {len(events_to_capture)} events"
+            )
 
         # Register session spawning capabilities for agent delegation
         # This enables the task tool to spawn sub-agents
         self._register_session_spawning(session, active.prepared)
 
         # Restore transcript if this is a reconfigure (bundle/behavior change)
-        pending_transcript = getattr(self, '_pending_transcript', {})
+        pending_transcript = getattr(self, "_pending_transcript", {})
         if active.session_id in pending_transcript:
             transcript = pending_transcript.pop(active.session_id)
             await self._restore_transcript(session, transcript)
-            logger.info(f"Restored {len(transcript)} messages for reconfigured session {active.session_id}")
+            logger.info(
+                f"Restored {len(transcript)} messages for reconfigured session {active.session_id}"
+            )
 
         active.amplifier_session = session
         logger.info(f"Created AmplifierSession for {active.session_id}")
 
         return session
 
-    async def _restore_transcript(self, session: Any, transcript: list[dict[str, Any]]) -> None:
+    async def _restore_transcript(
+        self, session: Any, transcript: list[dict[str, Any]]
+    ) -> None:
         """
         Restore conversation transcript into a session.
 
@@ -283,17 +328,24 @@ class SessionManager:
             if context and hasattr(context, "set_messages"):
                 # Filter to only user/assistant messages (skip system/developer)
                 filtered = [
-                    msg for msg in transcript
+                    msg
+                    for msg in transcript
                     if msg.get("role") in ("user", "assistant")
                 ]
                 await context.set_messages(filtered)
-                logger.info(f"Restored {len(filtered)} messages via context.set_messages()")
+                logger.info(
+                    f"Restored {len(filtered)} messages via context.set_messages()"
+                )
             else:
-                logger.warning("Context module not found or doesn't support set_messages()")
+                logger.warning(
+                    "Context module not found or doesn't support set_messages()"
+                )
         except Exception as e:
             logger.error(f"Failed to restore transcript: {e}")
 
-    def _register_session_spawning(self, session: Any, prepared: "PreparedBundle") -> None:
+    def _register_session_spawning(
+        self, session: Any, prepared: "PreparedBundle"
+    ) -> None:
         """Register session spawning capabilities for agent delegation.
 
         This enables the task tool to spawn sub-agents by registering
@@ -351,10 +403,14 @@ class SessionManager:
             session.coordinator.register_capability("session.resume", resume_capability)
             logger.info("Registered session resume capability (session.resume)")
         except ImportError:
-            logger.warning("Could not register session.resume capability (amplifier-app-cli not available)")
+            logger.warning(
+                "Could not register session.resume capability (amplifier-app-cli not available)"
+            )
 
         session.coordinator.register_capability("session.spawn", spawn_capability)
-        logger.info("Registered session spawn capability with event forwarding (session.spawn)")
+        logger.info(
+            "Registered session spawn capability with event forwarding (session.spawn)"
+        )
 
     async def execute(
         self,
@@ -395,30 +451,36 @@ class SessionManager:
                 if images:
                     content = [{"type": "text", "text": prompt}]
                     for img_data in images:
-                        content.append({
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/png",
-                                "data": img_data,
+                        content.append(
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/png",
+                                    "data": img_data,
+                                },
                             }
-                        })
+                        )
 
                 # Execute via AmplifierSession
                 # Streaming happens automatically via the registered hook
                 logger.info(f"Executing prompt in session {session_id}")
                 result = await session.execute(content)
-                logger.info(f"Execution completed for session {session_id}, result length: {len(str(result)) if result else 0}")
+                logger.info(
+                    f"Execution completed for session {session_id}, result length: {len(str(result)) if result else 0}"
+                )
 
                 # Save transcript after each turn
                 await self._save_transcript(active)
 
                 # Notify completion
                 logger.info(f"Sending prompt_complete for session {session_id}")
-                await active.websocket.send_json({
-                    "type": "prompt_complete",
-                    "turn": active.metadata.turn_count,
-                })
+                await active.websocket.send_json(
+                    {
+                        "type": "prompt_complete",
+                        "turn": active.metadata.turn_count,
+                    }
+                )
                 logger.info(f"prompt_complete sent for session {session_id}")
 
             except asyncio.CancelledError:
@@ -428,10 +490,12 @@ class SessionManager:
 
             except Exception as e:
                 logger.error(f"Execution error in session {session_id}: {e}")
-                await active.websocket.send_json({
-                    "type": "execution_error",
-                    "error": str(e),
-                })
+                await active.websocket.send_json(
+                    {
+                        "type": "execution_error",
+                        "error": str(e),
+                    }
+                )
                 raise
 
     async def cancel(self, session_id: str, immediate: bool = False) -> None:
@@ -449,10 +513,12 @@ class SessionManager:
         if active.amplifier_session and hasattr(active.amplifier_session, "cancel"):
             await active.amplifier_session.cancel(immediate=immediate)
 
-        await active.websocket.send_json({
-            "type": "cancel_acknowledged",
-            "immediate": immediate,
-        })
+        await active.websocket.send_json(
+            {
+                "type": "cancel_acknowledged",
+                "immediate": immediate,
+            }
+        )
 
     async def handle_approval_response(
         self,
@@ -523,7 +589,11 @@ class SessionManager:
                 """Recursively mask sensitive fields in dicts."""
                 if isinstance(obj, dict):
                     return {
-                        k: ("***" if k in ("api_key", "secret", "password", "token") else mask_secrets(v))
+                        k: (
+                            "***"
+                            if k in ("api_key", "secret", "password", "token")
+                            else mask_secrets(v)
+                        )
                         for k, v in obj.items()
                     }
                 elif isinstance(obj, list):
@@ -545,7 +615,9 @@ class SessionManager:
                 "agents": mask_secrets(dict(bundle.agents) if bundle.agents else {}),
                 # Additional bundle attributes if available
                 "session_config": mask_secrets(getattr(bundle, "session", None)),
-                "orchestrator_config": mask_secrets(getattr(bundle, "orchestrator", None)),
+                "orchestrator_config": mask_secrets(
+                    getattr(bundle, "orchestrator", None)
+                ),
             }
 
             # Get mount plan if available
@@ -555,15 +627,21 @@ class SessionManager:
                     if mount_plan:
                         # Try to serialize mount plan
                         debug_info["mount_plan"] = {
-                            "modules": [repr(m) for m in getattr(mount_plan, "modules", [])],
-                            "providers": [repr(p) for p in getattr(mount_plan, "providers", [])],
+                            "modules": [
+                                repr(m) for m in getattr(mount_plan, "modules", [])
+                            ],
+                            "providers": [
+                                repr(p) for p in getattr(mount_plan, "providers", [])
+                            ],
                             "raw": repr(mount_plan),
                         }
                 except Exception as e:
                     debug_info["mount_plan"] = {"error": str(e)}
 
             await websocket.send_json(debug_info)
-            logger.info(f"Sent bundle debug info: {len(bundle.tools)} tools, {len(bundle.providers)} providers")
+            logger.info(
+                f"Sent bundle debug info: {len(bundle.tools)} tools, {len(bundle.providers)} providers"
+            )
 
         except Exception as e:
             logger.warning(f"Failed to send bundle debug info: {e}")
@@ -595,20 +673,29 @@ class SessionManager:
     async def _save_transcript(self, active: ActiveSession) -> None:
         """Save conversation transcript to JSONL file."""
         if not active.amplifier_session:
+            logger.debug("_save_transcript: no amplifier_session")
             return
 
         try:
             # Get messages from context module
             context = active.amplifier_session.coordinator.get("context")
-            if not context or not hasattr(context, "get_messages"):
+            if not context:
+                logger.debug("_save_transcript: no context module")
+                return
+            if not hasattr(context, "get_messages"):
+                logger.debug(
+                    f"_save_transcript: context has no get_messages, attrs: {dir(context)}"
+                )
                 return
 
             messages = await context.get_messages()
+            logger.debug(
+                f"_save_transcript: got {len(messages) if messages else 0} messages"
+            )
 
             # Filter to user/assistant only (skip system/developer)
             filtered = [
-                msg for msg in messages
-                if msg.get("role") in ("user", "assistant")
+                msg for msg in messages if msg.get("role") in ("user", "assistant")
             ]
 
             if not filtered:
@@ -628,7 +715,9 @@ class SessionManager:
                 lines.append(json.dumps(msg_dict, ensure_ascii=False))
 
             transcript_path.write_text("\n".join(lines) + "\n" if lines else "")
-            logger.info(f"Saved transcript with {len(filtered)} messages for session {active.session_id}")
+            logger.info(
+                f"Saved transcript with {len(filtered)} messages for session {active.session_id}"
+            )
 
         except Exception as e:
             logger.warning(f"Failed to save transcript: {e}")
@@ -666,7 +755,9 @@ class SessionManager:
         """List all active sessions."""
         return [s.metadata for s in self._active.values()]
 
-    def list_saved_sessions(self, top_level_only: bool = True, min_turns: int = 1) -> list[dict[str, Any]]:
+    def list_saved_sessions(
+        self, top_level_only: bool = True, min_turns: int = 1
+    ) -> list[dict[str, Any]]:
         """List saved sessions from storage.
 
         Args:
@@ -701,12 +792,16 @@ class SessionManager:
                     # Ensure timestamps have UTC indicator for JavaScript parsing
                     # Old sessions may have been saved without the 'Z' suffix
                     for ts_field in ("created_at", "updated_at"):
-                        if ts_field in metadata and not metadata[ts_field].endswith("Z"):
+                        if ts_field in metadata and not metadata[ts_field].endswith(
+                            "Z"
+                        ):
                             metadata[ts_field] = metadata[ts_field] + "Z"
 
                     sessions.append(metadata)
                 except Exception as e:
-                    logger.warning(f"Failed to load session metadata {session_dir}: {e}")
+                    logger.warning(
+                        f"Failed to load session metadata {session_dir}: {e}"
+                    )
 
         # Sort by updated_at descending (most recent first)
         sessions.sort(key=lambda s: s.get("updated_at", ""), reverse=True)
@@ -719,6 +814,7 @@ class SessionManager:
             return False
 
         import shutil
+
         try:
             shutil.rmtree(session_dir)
             return True

@@ -144,12 +144,19 @@ function App() {
         for (const msg of transcript) {
           if (msg.role === 'user' || msg.role === 'assistant') {
             // Convert transcript format to frontend Message format
-            const content = typeof msg.content === 'string'
-              ? [{ type: 'text' as const, content: msg.content }]
-              : (msg.content || []).map((block: { type?: string; text?: string }) => ({
-                  type: 'text' as const,
-                  content: block.text || '',
-                }));
+            let content: Array<{ type: 'text' | 'thinking'; content: string }>;
+            if (typeof msg.content === 'string') {
+              content = [{ type: 'text' as const, content: msg.content }];
+            } else {
+              // Filter and map content blocks - handle both text and thinking
+              content = (msg.content || [])
+                .filter((block: { type?: string }) => block.type === 'text' || block.type === 'thinking')
+                .map((block: { type?: string; text?: string; thinking?: string }) => ({
+                  type: (block.type === 'thinking' ? 'thinking' : 'text') as 'text' | 'thinking',
+                  content: block.text || block.thinking || '',
+                }))
+                .filter((block: { content: string }) => block.content); // Remove empty blocks
+            }
 
             addMessage({
               id: generateUUID(),
