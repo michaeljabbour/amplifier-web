@@ -184,6 +184,15 @@ class BundleManager:
         # coordinator capability. Pass session_cwd to create_session() and all modules
         # will query the capability automatically. No config injection needed.
 
+        # Enable debug and raw_debug for full event visibility in web console
+        debug_bundle = Bundle(
+            name="web-debug-config",
+            version="1.0.0",
+            session={"debug": True, "raw_debug": True},
+        )
+        bundle = bundle.compose(debug_bundle)
+        logger.info("Enabled debug and raw_debug for web event visibility")
+
         # Compose with provider config if specified (app-layer credential injection)
         if provider_config:
             provider_bundle = Bundle(
