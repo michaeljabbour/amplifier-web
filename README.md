@@ -42,6 +42,7 @@ amplifier-web/
 - Python 3.11+
 - Node.js 18+
 - uv (Python package manager)
+- An LLM provider API key (Anthropic or OpenAI)
 
 ### Backend
 
@@ -51,7 +52,21 @@ uv sync
 uv run python -m amplifier_web.main
 ```
 
-The server runs at http://localhost:8000
+The server starts at http://localhost:8000 and displays an **auth token** on startup:
+
+```
+==================================================
+  Amplifier Web Dev Server
+==================================================
+  URL: http://127.0.0.1:8000
+
+  Auth Token: <your-token-here>
+
+  Enter this token when prompted in the browser.
+==================================================
+```
+
+The token is also saved to `~/.amplifier/web-auth.json` for future reference.
 
 ### Frontend
 
@@ -61,7 +76,39 @@ npm install
 npm run dev
 ```
 
-The development server runs at http://localhost:5173 (proxies to backend)
+The development server runs at http://localhost:5173 (proxies API/WebSocket to backend).
+
+### External Access (Optional)
+
+To access from other machines on your network:
+
+1. **Create local config files** (these are gitignored):
+
+   `backend/.env.local`:
+   ```bash
+   HOST=0.0.0.0
+   AMPLIFIER_WEB_ALLOWED_ORIGINS=http://your-hostname:5173,http://your-hostname:8000
+   ```
+
+   `frontend/.env.local`:
+   ```bash
+   VITE_HOST=0.0.0.0
+   ```
+
+2. **Start the backend** with environment variables:
+   ```bash
+   cd backend
+   export $(grep -v '^#' .env.local | xargs)
+   uv run python -m amplifier_web.main
+   ```
+
+3. **Start the frontend** with host flag:
+   ```bash
+   cd frontend
+   npm run dev -- --host 0.0.0.0
+   ```
+
+4. **Access** at `http://your-hostname:5173`
 
 ## WebSocket Protocol
 

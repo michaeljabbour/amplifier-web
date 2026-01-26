@@ -710,9 +710,20 @@ if frontend_dir.exists():
 def main():
     """Run the server."""
     import uvicorn
+    from .auth import get_or_create_token
 
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8000"))
+
+    # Get or create auth token and display it
+    token = get_or_create_token()
+    print("\n" + "=" * 50)
+    print("  Amplifier Web Dev Server")
+    print("=" * 50)
+    print(f"  URL: http://{host}:{port}")
+    print(f"\n  Auth Token: {token}")
+    print("\n  Enter this token when prompted in the browser.")
+    print("=" * 50 + "\n")
 
     # Only watch backend source directory for reload, exclude everything else
     # This prevents the server from reloading when the orchestrator writes files

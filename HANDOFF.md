@@ -25,8 +25,9 @@ The codebase is clean, well-documented, and feature-complete for its initial sco
 - Python 3.11+
 - Node.js 18+
 - uv package manager
+- An LLM provider API key (ANTHROPIC_API_KEY or OPENAI_API_KEY)
 
-### Running Locally
+### Running Locally (Development Mode)
 
 ```bash
 # Clone the repository
@@ -36,7 +37,8 @@ cd amplifier-web
 # Backend (from backend/ directory)
 cd backend
 uv sync
-uv run python -m amplifier_web.cli --port 8443
+uv run python -m amplifier_web.main
+# Note: Auth token is printed on startup and saved to ~/.amplifier/web-auth.json
 
 # Frontend (from frontend/ directory, separate terminal)
 cd frontend
@@ -44,10 +46,46 @@ npm install
 npm run dev
 ```
 
+### Running with TLS (Production-like)
+
+```bash
+# Uses auto-generated self-signed certificates
+cd backend
+uv run python -m amplifier_web.cli --port 8443
+```
+
 ### Key URLs
-- Frontend: https://localhost:5173 (proxies to backend)
-- Backend API: https://localhost:8443
+- **Development mode:**
+  - Frontend: http://localhost:5173 (proxies to backend)
+  - Backend API: http://localhost:8000
+- **TLS mode (via cli.py):**
+  - Frontend: https://localhost:5173
+  - Backend API: https://localhost:8443
 - Auth token: `~/.amplifier/web-auth.json`
+
+### External Access
+
+To access from other machines, create `.env.local` files (gitignored):
+
+**backend/.env.local:**
+```bash
+HOST=0.0.0.0
+AMPLIFIER_WEB_ALLOWED_ORIGINS=http://your-hostname:5173,http://your-hostname:8000
+```
+
+**frontend/.env.local:**
+```bash
+VITE_HOST=0.0.0.0
+```
+
+Then start with:
+```bash
+# Backend
+cd backend && export $(grep -v '^#' .env.local | xargs) && uv run python -m amplifier_web.main
+
+# Frontend
+cd frontend && npm run dev -- --host 0.0.0.0
+```
 
 ---
 
