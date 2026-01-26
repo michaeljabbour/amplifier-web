@@ -13,7 +13,7 @@ import click
 
 
 @click.command()
-@click.option("--port", default=8443, help="Port to listen on")
+@click.option("--port", default=4000, help="Port to listen on")
 @click.option("--host", default="127.0.0.1", help="Host to bind to")
 @click.option("--cert", type=click.Path(exists=True, path_type=Path), help="TLS certificate file")
 @click.option("--key", type=click.Path(exists=True, path_type=Path), help="TLS private key file")
@@ -57,7 +57,7 @@ def main(
     # Development mode overrides
     if dev:
         no_tls = True
-        port = int(os.environ.get("PORT", "8000"))
+        port = int(os.environ.get("PORT", "4000"))
 
     # Get or create auth token
     token = get_or_create_token()

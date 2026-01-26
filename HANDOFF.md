@@ -51,16 +51,16 @@ npm run dev
 ```bash
 # Uses auto-generated self-signed certificates
 cd backend
-uv run python -m amplifier_web.cli --port 8443
+uv run python -m amplifier_web.cli
 ```
 
 ### Key URLs
 - **Development mode:**
-  - Frontend: http://localhost:5173 (proxies to backend)
-  - Backend API: http://localhost:8000
+  - Frontend: http://localhost:4100 (proxies to backend)
+  - Backend API: http://localhost:4000
 - **TLS mode (via cli.py):**
-  - Frontend: https://localhost:5173
-  - Backend API: https://localhost:8443
+  - Frontend: https://localhost:4100
+  - Backend API: https://localhost:4000
 - Auth token: `~/.amplifier/web-auth.json`
 
 ### External Access
@@ -70,7 +70,7 @@ To access from other machines, create `.env.local` files (gitignored):
 **backend/.env.local:**
 ```bash
 HOST=0.0.0.0
-AMPLIFIER_WEB_ALLOWED_ORIGINS=http://your-hostname:5173,http://your-hostname:8000
+AMPLIFIER_WEB_ALLOWED_ORIGINS=http://your-hostname:4100,http://your-hostname:4000
 ```
 
 **frontend/.env.local:**

@@ -96,10 +96,10 @@ def get_allowed_origins() -> list[str]:
 
     # Secure defaults for local development
     default_origins = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
+        "http://localhost:4100",
+        "http://localhost:4000",
+        "http://127.0.0.1:4100",
+        "http://127.0.0.1:4000",
     ]
     logger.info(f"Using default CORS origins: {default_origins}")
     return default_origins
@@ -811,7 +811,7 @@ def main():
     from .auth import get_or_create_token
 
     host = os.environ.get("HOST", "127.0.0.1")
-    port = int(os.environ.get("PORT", "8000"))
+    port = int(os.environ.get("PORT", "4000"))
 
     # Get or create auth token and display it
     token = get_or_create_token()

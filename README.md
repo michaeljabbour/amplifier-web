@@ -52,13 +52,13 @@ uv sync
 uv run python -m amplifier_web.main
 ```
 
-The server starts at http://localhost:8000 and displays an **auth token** on startup:
+The server starts at http://localhost:4000 and displays an **auth token** on startup:
 
 ```
 ==================================================
   Amplifier Web Dev Server
 ==================================================
-  URL: http://127.0.0.1:8000
+  URL: http://127.0.0.1:4000
 
   Auth Token: <your-token-here>
 
@@ -76,7 +76,7 @@ npm install
 npm run dev
 ```
 
-The development server runs at http://localhost:5173 (proxies API/WebSocket to backend).
+The development server runs at http://localhost:4100 (proxies API/WebSocket to backend).
 
 ### External Access (Optional)
 
@@ -87,7 +87,7 @@ To access from other machines on your network:
    `backend/.env.local`:
    ```bash
    HOST=0.0.0.0
-   AMPLIFIER_WEB_ALLOWED_ORIGINS=http://your-hostname:5173,http://your-hostname:8000
+   AMPLIFIER_WEB_ALLOWED_ORIGINS=http://your-hostname:4100,http://your-hostname:4000
    ```
 
    `frontend/.env.local`:
@@ -108,7 +108,7 @@ To access from other machines on your network:
    npm run dev -- --host 0.0.0.0
    ```
 
-4. **Access** at `http://your-hostname:5173`
+4. **Access** at `http://your-hostname:4100`
 
 ## WebSocket Protocol
 
