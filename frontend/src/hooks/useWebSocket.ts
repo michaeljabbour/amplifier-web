@@ -11,6 +11,23 @@ import type {
   Message,
 } from '../types/amplifier';
 
+/**
+ * Generate a UUID, with fallback for non-secure contexts (HTTP).
+ * crypto.randomUUID() requires a secure context (HTTPS), so we provide
+ * a fallback for development/LAN access over HTTP.
+ */
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for non-secure contexts
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 // Build WebSocket URL (no auth in URL - auth is sent as first message)
 const getWsUrl = () => {
   return `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/session`;
@@ -204,7 +221,7 @@ export function useWebSocket() {
 
               // Create new message with single block (with order)
               const newMessage: Message = {
-                id: crypto.randomUUID(),
+                id: generateUUID(),
                 role: 'assistant',
                 content: [{
                   type: blockType,
@@ -695,7 +712,7 @@ Behaviors: ${prevBehaviors} → ${newBehaviors}
 *Note: This is an experimental feature. Some context may be lost and the model may not fully recall previous tool outputs, thinking, or detailed conversation nuances.*`;
 
         addMessage({
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           role: 'system',
           content: [{ type: 'text', content: reconfigureMessage }],
           timestamp: new Date(),
@@ -730,7 +747,7 @@ Behaviors: ${prevBehaviors} → ${newBehaviors}
 
       // Add user message immediately
       addMessage({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         role: 'user',
         content: [{ type: 'text', content }],
         timestamp: new Date(),

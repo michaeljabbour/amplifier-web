@@ -13,6 +13,23 @@ import { ApprovalModal } from './components/Tools/ApprovalModal';
 import { LoginModal } from './components/Auth/LoginModal';
 import { SessionList } from './components/Sessions/SessionList';
 
+/**
+ * Generate a UUID, with fallback for non-secure contexts (HTTP).
+ * crypto.randomUUID() requires a secure context (HTTPS), so we provide
+ * a fallback for development/LAN access over HTTP.
+ */
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for non-secure contexts
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 interface SavedSession {
   session_id: string;
   bundle_name: string;
@@ -135,7 +152,7 @@ function App() {
                 }));
 
             addMessage({
-              id: crypto.randomUUID(),
+              id: generateUUID(),
               role: msg.role,
               content,
               timestamp: new Date(msg.timestamp || Date.now()),
@@ -149,7 +166,7 @@ function App() {
 
     // Add system message indicating session resume
     addMessage({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       role: 'system',
       content: [{ type: 'text', content: `**Session Resumed**\n\nRestoring conversation from \`${saved.session_id.slice(0, 8)}...\` (${saved.turn_count} turn${saved.turn_count !== 1 ? 's' : ''})` }],
       timestamp: new Date(),
