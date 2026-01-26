@@ -621,6 +621,7 @@ async def websocket_session(websocket: WebSocket):
                     bundle_name=request.bundle,
                     behaviors=request.behaviors,
                     provider_config=request.provider,
+                    session_id=request.resume_session_id,  # Use same ID when resuming
                     show_thinking=request.show_thinking,
                     initial_transcript=initial_transcript,
                     session_cwd=session_cwd,
