@@ -153,12 +153,30 @@ class SessionManager:
             provider_config=provider_config,
         )
 
-        # Create metadata
-        metadata = SessionMetadata(
-            session_id=session_id,
-            bundle_name=bundle_name,
-            cwd=session_cwd,
-        )
+        # Create or load metadata (preserve existing metadata when resuming)
+        existing_metadata = self._load_session_metadata(session_id)
+        if existing_metadata:
+            # Resuming - preserve turn count and created_at, update cwd if provided
+            existing_cwd = existing_metadata.get("cwd")
+            if existing_cwd and isinstance(existing_cwd, str):
+                existing_cwd = Path(existing_cwd)
+            
+            metadata = SessionMetadata(
+                session_id=session_id,
+                bundle_name=bundle_name,
+                turn_count=existing_metadata.get("turn_count", 0),
+                cwd=session_cwd or existing_cwd,
+            )
+            # Preserve original created_at if available
+            if existing_metadata.get("created_at"):
+                metadata.created_at = existing_metadata["created_at"]
+        else:
+            # New session
+            metadata = SessionMetadata(
+                session_id=session_id,
+                bundle_name=bundle_name,
+                cwd=session_cwd,
+            )
 
         # Create active session record (AmplifierSession created lazily)
         active = ActiveSession(
@@ -646,6 +664,26 @@ class SessionManager:
         except Exception as e:
             logger.warning(f"Failed to send bundle debug info: {e}")
             # Non-fatal - don't break session creation
+
+    def _load_session_metadata(self, session_id: str) -> dict[str, Any] | None:
+        """Load existing session metadata from storage if it exists."""
+        session_dir = self._storage_dir / session_id
+        metadata_path = session_dir / "metadata.json"
+        
+        if not metadata_path.exists():
+            return None
+        
+        try:
+            data = json.loads(metadata_path.read_text())
+            # Parse created_at back to datetime if it exists
+            if "created_at" in data and data["created_at"]:
+                # Handle ISO format with or without Z suffix
+                created_str = data["created_at"].rstrip("Z")
+                data["created_at"] = datetime.fromisoformat(created_str)
+            return data
+        except (json.JSONDecodeError, OSError, ValueError) as e:
+            logger.warning(f"Failed to load session metadata for {session_id}: {e}")
+            return None
 
     async def _save_session(self, active: ActiveSession) -> None:
         """Save session metadata and transcript to storage."""
