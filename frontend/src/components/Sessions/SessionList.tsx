@@ -117,6 +117,11 @@ export function SessionList({ onResume, onNewSession, onClose }: SessionListProp
                         <span className="text-xs px-1.5 py-0.5 bg-gray-600 rounded text-gray-300">
                           {session.bundle_name}
                         </span>
+                        {session.status === 'active' && (
+                          <span className="text-xs px-1.5 py-0.5 bg-green-600 rounded text-white font-medium animate-pulse">
+                            Active
+                          </span>
+                        )}
                       </div>
                       <div className="text-sm text-gray-400 mt-1">
                         {session.turn_count} turn{session.turn_count !== 1 ? 's' : ''} · {formatDate(session.updated_at)}
@@ -130,9 +135,13 @@ export function SessionList({ onResume, onNewSession, onClose }: SessionListProp
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => onResume(session)}
-                        className="px-3 py-1.5 bg-amplifier-600 hover:bg-amplifier-700 text-white rounded text-sm transition-colors"
+                        className={`px-3 py-1.5 text-white rounded text-sm transition-colors ${
+                          session.status === 'active'
+                            ? 'bg-green-600 hover:bg-green-700'
+                            : 'bg-amplifier-600 hover:bg-amplifier-700'
+                        }`}
                       >
-                        Resume
+                        {session.status === 'active' ? 'Reconnect' : 'Resume'}
                       </button>
                       <button
                         onClick={() => handleDelete(session.session_id)}

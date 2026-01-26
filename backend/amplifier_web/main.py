@@ -25,8 +25,7 @@ from .session_manager import SessionManager
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -66,7 +65,7 @@ app = FastAPI(
     title="Amplifier Web",
     description="Web interface for Microsoft Amplifier AI agent system",
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 
@@ -94,7 +93,7 @@ def get_allowed_origins() -> list[str]:
             return origins
         # If only wildcards were specified, fall through to defaults
         logger.warning("CORS wildcard (*) rejected, using secure defaults")
-    
+
     # Secure defaults for local development
     default_origins = [
         "http://localhost:3000",
@@ -120,19 +119,26 @@ app.add_middleware(
 # Pydantic Models
 # ============================================================================
 
+
 class SessionCreateRequest(BaseModel):
     """Request to create a new session."""
+
     bundle: str = "foundation"
     behaviors: list[str] | None = None
     provider: dict[str, Any] | None = None
     show_thinking: bool = True
-    initial_transcript: list[dict[str, Any]] | None = None  # For reconfigure with history
+    initial_transcript: list[dict[str, Any]] | None = (
+        None  # For reconfigure with history
+    )
     cwd: str | None = None  # Working directory for file operations
-    resume_session_id: str | None = None  # Session ID to resume (loads transcript from storage)
+    resume_session_id: str | None = (
+        None  # Session ID to resume (loads transcript from storage)
+    )
 
 
 class SessionResponse(BaseModel):
     """Session information response."""
+
     session_id: str
     bundle: str
     status: str
@@ -141,6 +147,7 @@ class SessionResponse(BaseModel):
 
 class BundleInfo(BaseModel):
     """Bundle information."""
+
     name: str
     description: str
     available: bool = True
@@ -149,6 +156,7 @@ class BundleInfo(BaseModel):
 
 class PromptRequest(BaseModel):
     """Request to execute a prompt."""
+
     prompt: str
     images: list[str] | None = None
 
@@ -156,6 +164,7 @@ class PromptRequest(BaseModel):
 # ============================================================================
 # REST API Endpoints
 # ============================================================================
+
 
 @app.get("/api/health")
 async def health_check():
@@ -207,19 +216,67 @@ async def list_sessions(_: AuthDep):
             session_id=s.session_id,
             bundle=s.bundle_name,
             status=s.status,
-            turn_count=s.turn_count
+            turn_count=s.turn_count,
         )
         for s in sessions
     ]
 
 
 @app.get("/api/sessions/history")
-async def list_saved_sessions(_: AuthDep):
-    """List saved sessions from storage."""
+async def list_saved_sessions(
+    _: AuthDep,
+    include_active: bool = Query(
+        default=True, description="Include currently active sessions"
+    ),
+):
+    """List saved sessions from storage, optionally including active sessions."""
     if not session_manager:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    return session_manager.list_saved_sessions()
+    sessions = session_manager.list_saved_sessions()
+
+    if include_active:
+        # Get active sessions and convert to same format as saved sessions
+        active_sessions = session_manager.list_active_sessions()
+        active_ids = set()
+
+        for active in active_sessions:
+            active_ids.add(active.session_id)
+            # Check if this active session is already in saved list
+            existing = next(
+                (s for s in sessions if s.get("session_id") == active.session_id), None
+            )
+            if existing:
+                # Update status to show it's currently active
+                existing["status"] = "active"
+            else:
+                # Add active session to list
+                sessions.append(
+                    {
+                        "session_id": active.session_id,
+                        "bundle_name": active.bundle_name,
+                        "created_at": active.created_at.isoformat() + "Z"
+                        if active.created_at
+                        else None,
+                        "updated_at": active.updated_at.isoformat() + "Z"
+                        if active.updated_at
+                        else None,
+                        "name": active.name,
+                        "turn_count": active.turn_count,
+                        "status": "active",
+                        "cwd": active.cwd,
+                    }
+                )
+
+        # Mark any saved sessions that are also active
+        for session in sessions:
+            if session.get("session_id") in active_ids:
+                session["status"] = "active"
+
+    # Sort by updated_at descending (most recent first)
+    sessions.sort(key=lambda s: s.get("updated_at") or "", reverse=True)
+
+    return sessions
 
 
 @app.delete("/api/sessions/history/{session_id}")
@@ -249,8 +306,10 @@ async def get_session_transcript(session_id: str, _: AuthDep):
 # Custom Bundle Endpoints
 # ============================================================================
 
+
 class CustomBundleRequest(BaseModel):
     """Request to add a custom bundle."""
+
     uri: str
     name: str | None = None
     description: str | None = None
@@ -258,6 +317,7 @@ class CustomBundleRequest(BaseModel):
 
 class ValidateBundleRequest(BaseModel):
     """Request to validate a bundle URI."""
+
     uri: str
 
 
@@ -307,8 +367,10 @@ async def validate_bundle(request: ValidateBundleRequest, _: AuthDep):
 # Custom Behavior Endpoints
 # ============================================================================
 
+
 class CustomBehaviorRequest(BaseModel):
     """Request to add a custom behavior."""
+
     uri: str
     name: str | None = None
     description: str | None = None
@@ -321,23 +383,49 @@ async def list_behaviors(_: AuthDep):
 
     # Built-in behaviors
     behaviors = [
-        {"name": "streaming-ui", "description": "Real-time streaming display", "is_custom": False},
-        {"name": "logging", "description": "Event logging to JSONL", "is_custom": False},
-        {"name": "redaction", "description": "Secret and PII redaction", "is_custom": False},
-        {"name": "progress-monitor", "description": "Analysis paralysis detection", "is_custom": False},
-        {"name": "todo-reminder", "description": "Task list reminders", "is_custom": False},
-        {"name": "sessions", "description": "Session management and naming", "is_custom": False},
+        {
+            "name": "streaming-ui",
+            "description": "Real-time streaming display",
+            "is_custom": False,
+        },
+        {
+            "name": "logging",
+            "description": "Event logging to JSONL",
+            "is_custom": False,
+        },
+        {
+            "name": "redaction",
+            "description": "Secret and PII redaction",
+            "is_custom": False,
+        },
+        {
+            "name": "progress-monitor",
+            "description": "Analysis paralysis detection",
+            "is_custom": False,
+        },
+        {
+            "name": "todo-reminder",
+            "description": "Task list reminders",
+            "is_custom": False,
+        },
+        {
+            "name": "sessions",
+            "description": "Session management and naming",
+            "is_custom": False,
+        },
     ]
 
     # Add custom behaviors from preferences
     prefs = load_preferences()
     for custom in prefs.custom_behaviors:
-        behaviors.append({
-            "name": custom.get("name", "unknown"),
-            "description": custom.get("description", ""),
-            "is_custom": True,
-            "uri": custom.get("uri"),
-        })
+        behaviors.append(
+            {
+                "name": custom.get("name", "unknown"),
+                "description": custom.get("description", ""),
+                "is_custom": True,
+                "uri": custom.get("uri"),
+            }
+        )
 
     return behaviors
 
@@ -356,7 +444,9 @@ async def add_custom_behavior(request: CustomBehaviorRequest, _: AuthDep):
     # Use bundle name if not provided
     bundle_info = validation["bundle_info"]
     final_name = request.name or bundle_info.get("name", "custom-behavior")
-    final_description = request.description or bundle_info.get("description", "Custom behavior")
+    final_description = request.description or bundle_info.get(
+        "description", "Custom behavior"
+    )
 
     # Save to preferences
     from .preferences import add_custom_behavior as do_add
@@ -391,8 +481,10 @@ async def remove_custom_behavior(name: str, _: AuthDep):
 # Preferences Endpoints
 # ============================================================================
 
+
 class PreferencesUpdate(BaseModel):
     """Request to update user preferences."""
+
     default_bundle: str | None = None
     default_behaviors: list[str] | None = None
     show_thinking: bool | None = None
@@ -431,6 +523,7 @@ async def update_preferences(updates: PreferencesUpdate, _: AuthDep):
 # WebSocket Endpoint
 # ============================================================================
 
+
 @app.websocket("/ws/session")
 async def websocket_session(websocket: WebSocket):
     """
@@ -461,10 +554,7 @@ async def websocket_session(websocket: WebSocket):
 
     # Wait for authentication message with timeout
     try:
-        auth_data = await asyncio.wait_for(
-            websocket.receive_json(),
-            timeout=5.0
-        )
+        auth_data = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
     except asyncio.TimeoutError:
         logger.warning("WebSocket authentication timeout")
         await websocket.close(code=4001, reason="Authentication timeout")
@@ -501,24 +591,30 @@ async def websocket_session(websocket: WebSocket):
             if msg_type == "create_session":
                 # Create new session (or reconfigure/resume with history)
                 request = SessionCreateRequest(**data.get("config", {}))
-                
+
                 # Validate session working directory
                 is_valid, error_msg, session_cwd = validate_session_cwd(request.cwd)
                 if not is_valid:
                     logger.warning(f"Invalid session CWD: {error_msg}")
-                    await websocket.send_json({
-                        "type": "error",
-                        "error": f"Invalid working directory: {error_msg}"
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "error": f"Invalid working directory: {error_msg}",
+                        }
+                    )
                     continue
 
                 # Load transcript from storage if resuming
                 initial_transcript = request.initial_transcript
                 if request.resume_session_id:
-                    stored_transcript = session_manager.load_transcript(request.resume_session_id)
+                    stored_transcript = session_manager.load_transcript(
+                        request.resume_session_id
+                    )
                     if stored_transcript:
                         initial_transcript = stored_transcript
-                        logger.info(f"Loaded {len(stored_transcript)} messages from session {request.resume_session_id}")
+                        logger.info(
+                            f"Loaded {len(stored_transcript)} messages from session {request.resume_session_id}"
+                        )
 
                 session_id = await session_manager.create_session(
                     websocket=websocket,
@@ -533,10 +629,9 @@ async def websocket_session(websocket: WebSocket):
             elif msg_type == "prompt":
                 # Execute prompt
                 if not session_id:
-                    await websocket.send_json({
-                        "type": "error",
-                        "error": "No session created"
-                    })
+                    await websocket.send_json(
+                        {"type": "error", "error": "No session created"}
+                    )
                     continue
 
                 prompt = data.get("content", "")
@@ -552,26 +647,20 @@ async def websocket_session(websocket: WebSocket):
                 # Handle approval response
                 if session_id:
                     await session_manager.handle_approval_response(
-                        session_id,
-                        data.get("id", ""),
-                        data.get("choice", "Deny")
+                        session_id, data.get("id", ""), data.get("choice", "Deny")
                     )
 
             elif msg_type == "cancel":
                 # Cancel execution
                 if session_id:
                     await session_manager.cancel(
-                        session_id,
-                        immediate=data.get("immediate", False)
+                        session_id, immediate=data.get("immediate", False)
                     )
 
             elif msg_type == "command":
                 # Handle slash command
                 await handle_slash_command(
-                    websocket,
-                    session_id,
-                    data.get("name", ""),
-                    data.get("args", [])
+                    websocket, session_id, data.get("name", ""), data.get("args", [])
                 )
 
             elif msg_type == "ping":
@@ -587,10 +676,7 @@ async def websocket_session(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         try:
-            await websocket.send_json({
-                "type": "error",
-                "error": str(e)
-            })
+            await websocket.send_json({"type": "error", "error": str(e)})
         except Exception:
             pass
 
@@ -601,10 +687,7 @@ async def websocket_session(websocket: WebSocket):
 
 
 async def handle_slash_command(
-    websocket: WebSocket,
-    session_id: str | None,
-    command: str,
-    args: list[str]
+    websocket: WebSocket, session_id: str | None, command: str, args: list[str]
 ) -> None:
     """
     Handle slash commands from the web interface.
@@ -616,81 +699,94 @@ async def handle_slash_command(
         args: Command arguments
     """
     if command == "help":
-        await websocket.send_json({
-            "type": "command_result",
-            "command": "help",
-            "result": {
-                "commands": [
-                    {"name": "help", "description": "Show available commands"},
-                    {"name": "status", "description": "Show session status"},
-                    {"name": "tools", "description": "List available tools"},
-                    {"name": "agents", "description": "List available agents"},
-                    {"name": "clear", "description": "Clear conversation context"},
-                    {"name": "mode", "description": "Set execution mode"},
-                    {"name": "modes", "description": "List available modes"},
-                ]
+        await websocket.send_json(
+            {
+                "type": "command_result",
+                "command": "help",
+                "result": {
+                    "commands": [
+                        {"name": "help", "description": "Show available commands"},
+                        {"name": "status", "description": "Show session status"},
+                        {"name": "tools", "description": "List available tools"},
+                        {"name": "agents", "description": "List available agents"},
+                        {"name": "clear", "description": "Clear conversation context"},
+                        {"name": "mode", "description": "Set execution mode"},
+                        {"name": "modes", "description": "List available modes"},
+                    ]
+                },
             }
-        })
+        )
 
     elif command == "status":
         if session_id and session_manager:
             session = session_manager.get_session(session_id)
             if session:
-                await websocket.send_json({
-                    "type": "command_result",
-                    "command": "status",
-                    "result": {
-                        "session_id": session.metadata.session_id,
-                        "bundle": session.metadata.bundle_name,
-                        "turns": session.metadata.turn_count,
-                        "created": session.metadata.created_at.isoformat(),
+                await websocket.send_json(
+                    {
+                        "type": "command_result",
+                        "command": "status",
+                        "result": {
+                            "session_id": session.metadata.session_id,
+                            "bundle": session.metadata.bundle_name,
+                            "turns": session.metadata.turn_count,
+                            "created": session.metadata.created_at.isoformat(),
+                        },
                     }
-                })
+                )
                 return
 
-        await websocket.send_json({
-            "type": "command_result",
-            "command": "status",
-            "result": {"error": "No active session"}
-        })
+        await websocket.send_json(
+            {
+                "type": "command_result",
+                "command": "status",
+                "result": {"error": "No active session"},
+            }
+        )
 
     elif command == "tools":
         if session_id and session_manager:
             session = session_manager.get_session(session_id)
             if session:
                 tools = session.prepared.mount_plan.get("tools", [])
-                await websocket.send_json({
-                    "type": "command_result",
-                    "command": "tools",
-                    "result": {
-                        "tools": [
-                            {"module": t.get("module", "unknown")}
-                            for t in tools
-                        ]
+                await websocket.send_json(
+                    {
+                        "type": "command_result",
+                        "command": "tools",
+                        "result": {
+                            "tools": [
+                                {"module": t.get("module", "unknown")} for t in tools
+                            ]
+                        },
                     }
-                })
+                )
                 return
 
-        await websocket.send_json({
-            "type": "command_result",
-            "command": "tools",
-            "result": {"error": "No active session"}
-        })
+        await websocket.send_json(
+            {
+                "type": "command_result",
+                "command": "tools",
+                "result": {"error": "No active session"},
+            }
+        )
 
     elif command == "clear":
         # Clear context would need AmplifierSession integration
-        await websocket.send_json({
-            "type": "command_result",
-            "command": "clear",
-            "result": {"message": "Context cleared"}
-        })
+        await websocket.send_json(
+            {
+                "type": "command_result",
+                "command": "clear",
+                "result": {"message": "Context cleared"},
+            }
+        )
 
     else:
-        await websocket.send_json({
-            "type": "command_result",
-            "command": command,
-            "result": {"error": f"Unknown command: {command}"}
-        })
+        await websocket.send_json(
+            {
+                "type": "command_result",
+                "command": command,
+                "result": {"error": f"Unknown command: {command}"},
+            }
+        )
 
 
 # ============================================================================
@@ -706,6 +802,7 @@ if frontend_dir.exists():
 # ============================================================================
 # CLI Entry Point
 # ============================================================================
+
 
 def main():
     """Run the server."""
@@ -735,7 +832,7 @@ def main():
         port=port,
         reload=True,
         reload_dirs=[str(backend_dir)],  # Only watch backend source
-        log_level="info"
+        log_level="info",
     )
 
 
