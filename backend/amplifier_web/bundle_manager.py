@@ -235,7 +235,11 @@ class BundleManager:
                     providers=[{
                         "module": "provider-anthropic",
                         "source": "git+https://github.com/microsoft/amplifier-module-provider-anthropic@main",
-                        "config": {"default_model": "claude-sonnet-4-5"}
+                        "config": {
+                            "default_model": "claude-sonnet-4-5",
+                            "debug": True,
+                            "raw_debug": True,
+                        }
                     }],
                 )
                 logger.info("Auto-detected Anthropic provider from environment")
@@ -252,7 +256,11 @@ class BundleManager:
                     providers=[{
                         "module": "provider-openai",
                         "source": "git+https://github.com/microsoft/amplifier-module-provider-openai@main",
-                        "config": {"default_model": "gpt-4o"}
+                        "config": {
+                            "default_model": "gpt-4o",
+                            "debug": True,
+                            "raw_debug": True,
+                        }
                     }],
                 )
                 logger.info("Auto-detected OpenAI provider from environment")
