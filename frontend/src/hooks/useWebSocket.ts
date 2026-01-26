@@ -722,6 +722,24 @@ Behaviors: ${prevBehaviors} → ${newBehaviors}
         // (but NOT when resuming - messages were already loaded by handleResumeSession)
         clearMessages();
         clearSubSessions();
+
+        // Add a system message showing the new session configuration
+        const bundle = config.bundle || 'foundation';
+        const behaviors = config.behaviors?.join(', ') || 'default';
+        const cwd = config.cwd || 'default';
+
+        const newSessionMessage = `**New Session Started**
+
+**Bundle:** \`${bundle}\`
+**Behaviors:** ${behaviors}
+**Working Directory:** \`${cwd}\``;
+
+        addMessage({
+          id: generateUUID(),
+          role: 'system',
+          content: [{ type: 'text', content: newSessionMessage }],
+          timestamp: new Date(),
+        });
       }
 
       send({

@@ -284,7 +284,7 @@ function App() {
               onCreateSession={(config) => {
                 setSessionStarted(true);
                 createSession(config);
-                setShowConfig(false);
+                // Don't close config panel - let user see session was created
               }}
             />
           </div>
