@@ -680,6 +680,21 @@ class SessionManager:
                 # Handle ISO format with or without Z suffix
                 created_str = data["created_at"].rstrip("Z")
                 data["created_at"] = datetime.fromisoformat(created_str)
+            
+            # Recalculate turn_count from transcript (metadata may be stale)
+            transcript_path = session_dir / "transcript.jsonl"
+            if transcript_path.exists():
+                try:
+                    user_turns = sum(
+                        1 for line in transcript_path.read_text().splitlines()
+                        if line and '"role": "user"' in line
+                    )
+                    if user_turns > data.get("turn_count", 0):
+                        data["turn_count"] = user_turns
+                        logger.info(f"Recalculated turn_count for {session_id}: {user_turns}")
+                except Exception as e:
+                    logger.warning(f"Failed to recalculate turn_count: {e}")
+            
             return data
         except (json.JSONDecodeError, OSError, ValueError) as e:
             logger.warning(f"Failed to load session metadata for {session_id}: {e}")

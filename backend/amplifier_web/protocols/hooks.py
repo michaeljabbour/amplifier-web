@@ -59,13 +59,14 @@ class WebStreamingHook:
             HookResult with action="continue"
         """
         # Log all events for debugging (helps identify what's being emitted)
-        logger.debug(f"[EVENT] {event}: {list(data.keys()) if data else 'no data'}")
+        # Using INFO level temporarily to diagnose missing events
+        logger.info(f"[EVENT] {event}: {list(data.keys()) if data else 'no data'}")
         
         try:
             message = self._map_event_to_message(event, data)
             if message:
                 await self._websocket.send_json(message)
-                logger.debug(f"[SENT] {message.get('type', event)}")
+                logger.info(f"[SENT] {message.get('type', event)}")
         except Exception as e:
             logger.warning(f"Failed to stream event {event}: {e}")
 
