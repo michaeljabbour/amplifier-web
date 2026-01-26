@@ -190,12 +190,10 @@ const reconfigureMessage = `**Session Reconfigured** (experimental)
 ```
 **Action:** Test and stabilize, or document limitations clearly.
 
-#### 6. Working Directory Gaps
-Some modules don't support configurable `working_dir`:
-- `hooks-logging`, `hooks-notify`, `hooks-mode`, `hooks-python-check`, `hook-shell`
-- `tool-recipes`
+#### 6. Working Directory ✅ RESOLVED
+~~Some modules don't support configurable `working_dir`.~~
 
-**Action:** Track upstream foundation changes or document limitation.
+**Status:** Fixed upstream! All modules now support the unified `session.working_dir` coordinator capability. Just pass `session_cwd` to `create_session()` and all modules query it automatically. Config injection workaround has been removed.
 
 ### LOW Priority
 
@@ -223,17 +221,18 @@ Some modules don't support configurable `working_dir`:
 
 ## Feature Request for Upstream (amplifier-foundation)
 
-### Unified Working Directory Capability
+### Unified Working Directory Capability ✅ IMPLEMENTED
 
-**Problem:** When amplifier runs as a backend service, `Path.cwd()` returns the server's directory, not the user's intended project directory.
+~~**Problem:** When amplifier runs as a backend service, `Path.cwd()` returns the server's directory, not the user's intended project directory.~~
 
-**Proposed Solution:**
-1. Register `working_dir` as a coordinator capability
-2. Provide helper for modules to query it
-3. Update all modules to use helper instead of `Path.cwd()`
-4. Add `working_dir` to Bundle schema
+**Status:** Implemented upstream! The unified `session.working_dir` coordinator capability is now available.
 
-**Current Workaround:** App-layer config injection into supported modules only.
+**How it works:**
+- Pass `session_cwd` parameter to `create_session()`
+- All modules query the capability via `get_working_dir(coordinator)`
+- Child sessions inherit the capability from parent sessions
+
+**Modules updated:** tool-bash, tool-search, tool-recipes, hooks-logging, hooks-status-context, hooks-mode, hooks-python-check, hook-shell
 
 ---
 

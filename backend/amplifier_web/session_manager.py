@@ -136,12 +136,12 @@ class SessionManager:
         streaming_hook = WebStreamingHook(websocket, show_thinking=show_thinking)
 
         # Load and prepare bundle via BundleManager
-        # Pass session_cwd as working_dir to inject into tool-bash config
+        # Note: session_cwd is passed to create_session() below, where the unified
+        # working_dir coordinator capability handles it for all modules
         prepared = await self._bundles.load_and_prepare(
             bundle_name,
             behaviors=behaviors,
             provider_config=provider_config,
-            working_dir=session_cwd,
         )
 
         # Create metadata

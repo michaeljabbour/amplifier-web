@@ -121,7 +121,6 @@ class BundleManager:
         bundle_name: str,
         behaviors: list[str] | None = None,
         provider_config: dict[str, Any] | None = None,
-        working_dir: Path | None = None,
     ) -> "PreparedBundle":
         """
         Load a bundle, compose behaviors, inject provider config, and prepare.
@@ -132,10 +131,13 @@ class BundleManager:
             bundle_name: Bundle to load (e.g., "foundation", "amplifier-dev")
             behaviors: Optional behavior bundles to compose (e.g., ["streaming-ui"])
             provider_config: Optional provider config to inject (app-layer credentials)
-            working_dir: Optional working directory for tools (injected into tool-bash config)
 
         Returns:
             PreparedBundle ready for create_session()
+
+        Note:
+            Working directory is now handled by passing session_cwd to create_session().
+            All modules query the coordinator capability instead of using config injection.
 
         Example:
             prepared = await manager.load_and_prepare(
@@ -149,6 +151,7 @@ class BundleManager:
             session = await prepared.create_session(
                 approval_system=my_approval,
                 display_system=my_display,
+                session_cwd=user_project_path,  # Working dir passed here now
             )
         """
         await self.initialize()
@@ -177,45 +180,9 @@ class BundleManager:
                 except Exception as e:
                     logger.warning(f"Failed to load behavior '{behavior_name}': {e}")
 
-        # Inject working_dir into tool and hook configs if specified
-        # This is necessary because many modules default to Path.cwd() which would
-        # be the server's directory, not the user's intended project directory.
-        #
-        # Modules that support working_dir config:
-        # - tool-bash: command execution
-        # - tool-search (glob): file pattern matching
-        # - tool-search (grep): content searching
-        # - hooks-status-context: git status in system prompt
-        #
-        # Modules that DON'T support config (use Path.cwd() directly):
-        # - hooks-logging, hooks-notify, hooks-mode, hooks-python-check, hook-shell
-        # - tool-recipes (uses Path.cwd() as project root)
-        # These would require upstream changes to support configurable working_dir.
-        if working_dir:
-            working_dir_str = str(working_dir)
-
-            # Inject into tools that support working_dir config
-            tool_config_bundle = Bundle(
-                name="app-tool-config",
-                version="1.0.0",
-                tools=[
-                    {"module": "tool-bash", "config": {"working_dir": working_dir_str}},
-                    {"module": "tool-search", "config": {"working_dir": working_dir_str}},
-                ],
-            )
-            bundle = bundle.compose(tool_config_bundle)
-            logger.info(f"Injected working_dir into tools: {working_dir}")
-
-            # Inject into hooks that support working_dir config
-            hook_config_bundle = Bundle(
-                name="app-hook-config",
-                version="1.0.0",
-                hooks=[
-                    {"module": "hooks-status-context", "config": {"working_dir": working_dir_str}},
-                ],
-            )
-            bundle = bundle.compose(hook_config_bundle)
-            logger.info(f"Injected working_dir into hooks: {working_dir}")
+        # Note: Working directory is now handled via the unified session.working_dir
+        # coordinator capability. Pass session_cwd to create_session() and all modules
+        # will query the capability automatically. No config injection needed.
 
         # Compose with provider config if specified (app-layer credential injection)
         if provider_config:
