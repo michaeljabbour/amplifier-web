@@ -488,6 +488,7 @@ class PreferencesUpdate(BaseModel):
     default_bundle: str | None = None
     default_behaviors: list[str] | None = None
     show_thinking: bool | None = None
+    default_cwd: str | None = None
 
 
 @app.get("/api/preferences")
@@ -514,6 +515,9 @@ async def update_preferences(updates: PreferencesUpdate, _: AuthDep):
         updates_dict["default_behaviors"] = updates.default_behaviors
     if updates.show_thinking is not None:
         updates_dict["show_thinking"] = updates.show_thinking
+    if updates.default_cwd is not None:
+        # Empty string clears the default, otherwise save the path
+        updates_dict["default_cwd"] = updates.default_cwd or None
 
     prefs = do_update(updates_dict)
     return asdict(prefs)
