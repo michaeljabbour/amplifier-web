@@ -822,8 +822,24 @@ class SessionManager:
                 try:
                     metadata = json.loads(metadata_path.read_text())
 
-                    # Filter by minimum turn count
+                    # Get turn count - if 0, try to calculate from transcript
                     turn_count = metadata.get("turn_count", 0)
+                    if turn_count == 0:
+                        # Metadata may be stale - count user messages in transcript
+                        transcript_path = session_dir / "transcript.jsonl"
+                        if transcript_path.exists():
+                            try:
+                                user_turns = sum(
+                                    1 for line in transcript_path.read_text().splitlines()
+                                    if line and '"role": "user"' in line
+                                )
+                                if user_turns > 0:
+                                    turn_count = user_turns
+                                    metadata["turn_count"] = turn_count
+                            except Exception:
+                                pass  # Fall back to metadata value
+                    
+                    # Filter by minimum turn count
                     if turn_count < min_turns:
                         continue
 
