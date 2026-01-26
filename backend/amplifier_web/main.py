@@ -40,12 +40,22 @@ async def lifespan(app: FastAPI):
     global bundle_manager, session_manager
 
     # Determine modules directory (check for submodules)
-    modules_dir = Path(__file__).parent.parent.parent / "modules"
-    if not modules_dir.exists():
-        modules_dir = None
-        logger.info("Submodules not found, will use installed packages")
+    # Look for workspace-style layout where submodules are siblings of amplifier-web
+    # e.g., amplifier-web-project/amplifier-foundation, amplifier-web-project/amplifier-core
+    workspace_root = Path(
+        __file__
+    ).parent.parent.parent.parent  # Go up to workspace root
+    if (workspace_root / "amplifier-foundation").exists():
+        modules_dir = workspace_root
+        logger.info(f"Using workspace submodules from {modules_dir}")
     else:
-        logger.info(f"Using submodules from {modules_dir}")
+        # Fallback: check for modules/ subdirectory (legacy layout)
+        modules_dir = Path(__file__).parent.parent.parent / "modules"
+        if not modules_dir.exists():
+            modules_dir = None
+            logger.info("Submodules not found, will use installed packages")
+        else:
+            logger.info(f"Using submodules from {modules_dir}")
 
     # Initialize managers
     bundle_manager = BundleManager(modules_dir=modules_dir)
