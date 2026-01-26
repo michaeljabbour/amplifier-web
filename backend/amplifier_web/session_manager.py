@@ -56,6 +56,7 @@ class ActiveSession:
     - The PreparedBundle (for spawning, agent lookup)
     - The AmplifierSession (created lazily on first execute)
     - Web protocol implementations (display, approval, streaming hook)
+    - Execute task for cancellation support
     """
 
     session_id: str
@@ -66,6 +67,7 @@ class ActiveSession:
     approval: WebApprovalSystem
     streaming_hook: WebStreamingHook
     amplifier_session: Any = None  # Created on first execute
+    execute_task: asyncio.Task | None = None  # For cancellation support
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
@@ -480,10 +482,17 @@ class SessionManager:
                             }
                         )
 
-                # Execute via AmplifierSession
+                # Reset cancellation state before each execution
+                session.coordinator.cancellation.reset()
+
+                # Execute via AmplifierSession as a task (for cancellation support)
                 # Streaming happens automatically via the registered hook
                 logger.info(f"Executing prompt in session {session_id}")
-                result = await session.execute(content)
+                active.execute_task = asyncio.create_task(session.execute(content))
+                try:
+                    result = await active.execute_task
+                finally:
+                    active.execute_task = None
                 logger.info(
                     f"Execution completed for session {session_id}, result length: {len(str(result)) if result else 0}"
                 )
@@ -520,6 +529,10 @@ class SessionManager:
         """
         Cancel execution in a session.
 
+        Uses the kernel's cancellation mechanism:
+        - Graceful: Waits for current tools to complete
+        - Immediate: Synthesizes tool results and stops
+
         Args:
             session_id: Session to cancel
             immediate: If True, cancel immediately; otherwise graceful
@@ -528,8 +541,14 @@ class SessionManager:
         if not active:
             return
 
-        if active.amplifier_session and hasattr(active.amplifier_session, "cancel"):
-            await active.amplifier_session.cancel(immediate=immediate)
+        # Request cancellation through the kernel's coordinator API
+        if active.amplifier_session:
+            coordinator = active.amplifier_session.coordinator
+            await coordinator.request_cancel(immediate=immediate)
+
+            # For immediate cancellation, also cancel the asyncio task
+            if immediate and active.execute_task and not active.execute_task.done():
+                active.execute_task.cancel()
 
         await active.websocket.send_json(
             {
