@@ -1,0 +1,14 @@
+{
+  "name": "amplifier-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && uv run python -m amplifier_web.main",
+    "frontend": "cd frontend && npm run dev",
+    "install:all": "cd frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

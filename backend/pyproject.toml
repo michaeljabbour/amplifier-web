@@ -39,6 +39,6 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.uv.sources]
-amplifier-core = { git = "https://github.com/microsoft/amplifier-core.git" }
-amplifier-foundation = { git = "https://github.com/microsoft/amplifier-foundation.git" }
-amplifier-module-provider-anthropic = { git = "https://github.com/microsoft/amplifier-module-provider-anthropic.git" }
+amplifier-core = { git = "https://github.com/microsoft/amplifier-core", branch = "main" }
+amplifier-foundation = { git = "https://github.com/microsoft/amplifier-foundation", branch = "main" }
+amplifier-module-provider-anthropic = { git = "https://github.com/microsoft/amplifier-module-provider-anthropic", branch = "main" }

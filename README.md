@@ -44,39 +44,43 @@ amplifier-web/
 - uv (Python package manager)
 - An LLM provider API key (Anthropic or OpenAI)
 
-### Backend
+### One Command Setup
 
+```bash
+# Clone and install
+git clone https://github.com/michaeljabbour/amplifier-web
+cd amplifier-web
+npm install
+cd frontend && npm install && cd ..
+cd backend && uv sync && cd ..
+
+# Run everything
+npm run dev
+```
+
+This starts both backend and frontend together. Open http://localhost:4100
+
+On localhost, authentication is automatic - no token copy/paste needed.
+
+### Manual Setup (Alternative)
+
+If you prefer separate terminals:
+
+**Terminal 1 - Backend:**
 ```bash
 cd backend
 uv sync
 uv run python -m amplifier_web.main
 ```
 
-The server starts at http://localhost:4000 and displays an **auth token** on startup:
-
-```
-==================================================
-  Amplifier Web Dev Server
-==================================================
-  URL: http://127.0.0.1:4000
-
-  Auth Token: <your-token-here>
-
-  Enter this token when prompted in the browser.
-==================================================
-```
-
-The token is also saved to `~/.amplifier/web-auth.json` for future reference.
-
-### Frontend
-
+**Terminal 2 - Frontend:**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-The development server runs at http://localhost:4100 (proxies API/WebSocket to backend).
+The backend displays an auth token on startup (saved to `~/.amplifier/web-auth.json`), but on localhost the frontend auto-fetches it.
 
 ### External Access (Optional)
 
