@@ -159,7 +159,6 @@ export function InputArea({ onSend, onCancel, isExecuting, authToken }: InputAre
       }
     } else {
       // Add placeholder while extracting
-      const placeholderId = Date.now();
       setAttachments(prev => [...prev, {
         type: 'document',
         name: file.name,

@@ -9,6 +9,7 @@ import type {
   ServerMessage,
   ClientMessage,
   Message,
+  ContentBlock,
 } from '../types/amplifier';
 
 /**
@@ -769,7 +770,7 @@ Behaviors: ${prevBehaviors} → ${newBehaviors}
       setStreaming(true);
 
       // Build user message content
-      const messageContent: Array<{type: string; content: string; name?: string}> = [];
+      const messageContent: ContentBlock[] = [];
       
       // Add attachment summaries
       if (attachments && attachments.length > 0) {

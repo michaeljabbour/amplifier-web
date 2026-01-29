@@ -239,7 +239,8 @@ export interface CreateSessionMessage {
 export interface PromptMessage {
   type: 'prompt';
   content: string;
-  images?: string[];
+  images?: Array<{data: string; media_type: string}>;
+  attachments?: Array<{name: string; text: string}>;
 }
 
 export interface ApprovalResponseMessage {
@@ -270,8 +271,9 @@ export interface PingMessage {
 export type MessageRole = 'user' | 'assistant' | 'system';
 
 export interface ContentBlock {
-  type: 'text' | 'thinking' | 'tool_use' | 'tool_result';
+  type: 'text' | 'thinking' | 'tool_use' | 'tool_result' | 'image' | 'attachment';
   content: string;
+  name?: string;  // For attachments
   isStreaming?: boolean;
   order?: number;  // Insertion order for chronological rendering
 }
