@@ -129,3 +129,16 @@ body {
   content: '▊';
   @apply animate-pulse text-amplifier-500;
 }
+
+/* Custom checkbox styling for dark theme */
+input[type="checkbox"] {
+  @apply w-4 h-4 rounded border-2 border-gray-500 bg-gray-700 
+         checked:bg-amplifier-500 checked:border-amplifier-500
+         focus:ring-2 focus:ring-amplifier-500 focus:ring-offset-0
+         cursor-pointer appearance-none relative;
+}
+
+input[type="checkbox"]:checked::after {
+  content: '✓';
+  @apply absolute inset-0 flex items-center justify-center text-white text-xs font-bold;
+}
