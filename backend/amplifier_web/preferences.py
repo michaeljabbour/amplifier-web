@@ -24,9 +24,10 @@ class UserPreferences:
     # Default bundle to use when creating new sessions
     default_bundle: str = "foundation"
 
-    # Default behaviors to apply
-    # Sessions behavior enables automatic session naming after turn 2
-    default_behaviors: list[str] = field(default_factory=lambda: ["sessions"])
+    # Default behaviors to apply ON TOP of what's already in the bundle
+    # Note: foundation bundle already includes sessions, streaming-ui, status-context,
+    # redaction, todo-reminder - no need to add them again here
+    default_behaviors: list[str] = field(default_factory=list)
 
     # Display options
     show_thinking: bool = True
@@ -57,7 +58,7 @@ def load_preferences() -> UserPreferences:
         data = json.loads(PREFS_FILE.read_text())
         return UserPreferences(
             default_bundle=data.get("default_bundle", "foundation"),
-            default_behaviors=data.get("default_behaviors", ["sessions"]),
+            default_behaviors=data.get("default_behaviors", []),
             show_thinking=data.get("show_thinking", True),
             default_cwd=data.get("default_cwd"),
             custom_bundles=data.get("custom_bundles", []),
@@ -102,11 +103,13 @@ def add_custom_bundle(uri: str, name: str, description: str = "") -> UserPrefere
             return prefs
 
     # Add new
-    prefs.custom_bundles.append({
-        "uri": uri,
-        "name": name,
-        "description": description,
-    })
+    prefs.custom_bundles.append(
+        {
+            "uri": uri,
+            "name": name,
+            "description": description,
+        }
+    )
     save_preferences(prefs)
     return prefs
 
@@ -122,9 +125,7 @@ def remove_custom_bundle(name: str) -> UserPreferences:
         Updated preferences.
     """
     prefs = load_preferences()
-    prefs.custom_bundles = [
-        b for b in prefs.custom_bundles if b.get("name") != name
-    ]
+    prefs.custom_bundles = [b for b in prefs.custom_bundles if b.get("name") != name]
     save_preferences(prefs)
     return prefs
 
@@ -153,11 +154,13 @@ def add_custom_behavior(uri: str, name: str, description: str = "") -> UserPrefe
             return prefs
 
     # Add new
-    prefs.custom_behaviors.append({
-        "uri": uri,
-        "name": name,
-        "description": description,
-    })
+    prefs.custom_behaviors.append(
+        {
+            "uri": uri,
+            "name": name,
+            "description": description,
+        }
+    )
     save_preferences(prefs)
     return prefs
 
