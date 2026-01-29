@@ -10,7 +10,9 @@ The frontend receives exactly what Amplifier emits for full debugging capability
 
 from __future__ import annotations
 
+import difflib
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from amplifier_core.models import HookResult
@@ -111,11 +113,12 @@ class WebStreamingHook:
         # Content streaming events - need index tracking for UI
         if event == "content_block:start":
             block_type = data.get("block_type") or data.get("type", "text")
-            index = (
+            raw_index = (
                 data.get("block_index")
                 if data.get("block_index") is not None
-                else data.get("index", 0)
+                else data.get("index")
             )
+            index: int = int(raw_index) if raw_index is not None else 0
             self._current_blocks[index] = block_type
 
             # Skip thinking blocks if disabled
@@ -130,11 +133,12 @@ class WebStreamingHook:
             }
 
         elif event == "content_block:delta":
-            index = (
+            raw_index = (
                 data.get("block_index")
                 if data.get("block_index") is not None
-                else data.get("index", 0)
+                else data.get("index")
             )
+            index: int = int(raw_index) if raw_index is not None else 0
             block_type = self._current_blocks.get(index, "text")
 
             # Skip thinking blocks if disabled
@@ -156,11 +160,12 @@ class WebStreamingHook:
             }
 
         elif event == "content_block:end":
-            index = (
+            raw_index = (
                 data.get("block_index")
                 if data.get("block_index") is not None
-                else data.get("index", 0)
+                else data.get("index")
             )
+            index: int = int(raw_index) if raw_index is not None else 0
             block_type = self._current_blocks.pop(index, "text")
 
             # Skip thinking blocks if disabled
@@ -207,9 +212,22 @@ class WebStreamingHook:
 
             # Track file operations for artifact recording
             if tool_name in self.FILE_TOOLS:
+                file_path = arguments.get("file_path")
+                content_before = None
+
+                # Capture file content before the operation
+                if file_path and tool_name in {"write_file", "edit_file"}:
+                    try:
+                        path = Path(file_path).expanduser()
+                        if path.exists():
+                            content_before = path.read_text(encoding="utf-8")
+                    except Exception as e:
+                        logger.debug(f"Could not read file before edit: {e}")
+
                 self._pending_file_ops[tool_call_id] = {
                     "tool_name": tool_name,
                     "arguments": arguments,
+                    "content_before": content_before,
                 }
 
             return {
@@ -294,6 +312,7 @@ class WebStreamingHook:
             db = get_database()
             pending = self._pending_file_ops.get(tool_call_id, {})
             args = pending.get("arguments", {})
+            content_before = pending.get("content_before")
 
             # Extract file path and operation details
             file_path = None
@@ -303,12 +322,46 @@ class WebStreamingHook:
 
             if tool_name == "write_file":
                 file_path = args.get("file_path")
-                operation = "create"
+                operation = "create" if content_before is None else "edit"
                 content_after = args.get("content")
+
+                # Generate unified diff
+                diff = self._generate_unified_diff(
+                    content_before or "",
+                    content_after or "",
+                    file_path or "file",
+                )
+
             elif tool_name == "edit_file":
                 file_path = args.get("file_path")
                 operation = "edit"
-                diff = f"-{args.get('old_string', '')}\n+{args.get('new_string', '')}"
+                old_string = args.get("old_string", "")
+                new_string = args.get("new_string", "")
+
+                # Read the file after the edit to get full content
+                if file_path:
+                    try:
+                        path = Path(file_path).expanduser()
+                        if path.exists():
+                            content_after = path.read_text(encoding="utf-8")
+                    except Exception as e:
+                        logger.debug(f"Could not read file after edit: {e}")
+
+                # Generate unified diff from before/after content
+                if content_before is not None and content_after is not None:
+                    diff = self._generate_unified_diff(
+                        content_before,
+                        content_after,
+                        file_path or "file",
+                    )
+                else:
+                    # Fallback: simple diff from old/new strings
+                    diff = self._generate_unified_diff(
+                        old_string,
+                        new_string,
+                        file_path or "file",
+                    )
+
             elif tool_name == "bash":
                 # Check if bash command modified files
                 cmd = args.get("command", "")
@@ -327,12 +380,36 @@ class WebStreamingHook:
                     session_id=self._session_id,
                     file_path=file_path,
                     operation=operation,
+                    content_before=content_before,
                     content_after=content_after,
                     diff=diff,
                 )
                 logger.info(f"Recorded artifact: {operation} {file_path}")
         except Exception as e:
             logger.warning(f"Failed to record artifact: {e}")
+
+    def _generate_unified_diff(
+        self, content_before: str, content_after: str, file_path: str
+    ) -> str:
+        """Generate a unified diff between two file contents."""
+        before_lines = content_before.splitlines(keepends=True)
+        after_lines = content_after.splitlines(keepends=True)
+
+        # Ensure lines end with newline for proper diff
+        if before_lines and not before_lines[-1].endswith("\n"):
+            before_lines[-1] += "\n"
+        if after_lines and not after_lines[-1].endswith("\n"):
+            after_lines[-1] += "\n"
+
+        diff_lines = difflib.unified_diff(
+            before_lines,
+            after_lines,
+            fromfile=f"a/{file_path}",
+            tofile=f"b/{file_path}",
+            lineterm="",
+        )
+
+        return "".join(diff_lines)
 
     def _sanitize_for_ws(self, data: dict[str, Any]) -> dict[str, Any]:
         """
