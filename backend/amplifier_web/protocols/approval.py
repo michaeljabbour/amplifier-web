@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 class ApprovalTimeoutError(Exception):
     """Raised when user approval times out."""
+
     pass
 
 
@@ -52,7 +53,7 @@ class WebApprovalSystem:
         prompt: str,
         options: list[str],
         timeout: float = 300.0,
-        default: Literal["allow", "deny"] = "deny"
+        default: Literal["allow", "deny"] = "deny",
     ) -> str:
         """
         Request user approval via WebSocket.
@@ -79,14 +80,16 @@ class WebApprovalSystem:
         # Generate request ID and send to browser
         request_id = str(uuid.uuid4())
         try:
-            await self._websocket.send_json({
-                "type": "approval_request",
-                "id": request_id,
-                "prompt": prompt,
-                "options": options,
-                "timeout": timeout,
-                "default": default
-            })
+            await self._websocket.send_json(
+                {
+                    "type": "approval_request",
+                    "id": request_id,
+                    "prompt": prompt,
+                    "options": options,
+                    "timeout": timeout,
+                    "default": default,
+                }
+            )
         except Exception as e:
             logger.error(f"Failed to send approval request: {e}")
             # Return default on send failure
@@ -107,14 +110,18 @@ class WebApprovalSystem:
             return choice
 
         except asyncio.TimeoutError:
-            logger.warning(f"Approval timed out after {timeout}s, using default: {default}")
+            logger.warning(
+                f"Approval timed out after {timeout}s, using default: {default}"
+            )
             # Notify browser of timeout
             try:
-                await self._websocket.send_json({
-                    "type": "approval_timeout",
-                    "id": request_id,
-                    "applied_default": default
-                })
+                await self._websocket.send_json(
+                    {
+                        "type": "approval_timeout",
+                        "id": request_id,
+                        "applied_default": default,
+                    }
+                )
             except Exception:
                 pass
             return self._resolve_default(default, options)
@@ -142,9 +149,7 @@ class WebApprovalSystem:
         return False
 
     def _resolve_default(
-        self,
-        default: Literal["allow", "deny"],
-        options: list[str]
+        self, default: Literal["allow", "deny"], options: list[str]
     ) -> str:
         """
         Find the best matching option for the default action.
@@ -159,7 +164,9 @@ class WebApprovalSystem:
         # Try to find option matching default
         for option in options:
             option_lower = option.lower()
-            if default == "allow" and ("allow" in option_lower or "yes" in option_lower):
+            if default == "allow" and (
+                "allow" in option_lower or "yes" in option_lower
+            ):
                 return option
             if default == "deny" and ("deny" in option_lower or "no" in option_lower):
                 return option

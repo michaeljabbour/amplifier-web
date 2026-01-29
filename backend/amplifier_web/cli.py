@@ -15,8 +15,12 @@ import click
 @click.command()
 @click.option("--port", default=4000, help="Port to listen on")
 @click.option("--host", default="127.0.0.1", help="Host to bind to")
-@click.option("--cert", type=click.Path(exists=True, path_type=Path), help="TLS certificate file")
-@click.option("--key", type=click.Path(exists=True, path_type=Path), help="TLS private key file")
+@click.option(
+    "--cert", type=click.Path(exists=True, path_type=Path), help="TLS certificate file"
+)
+@click.option(
+    "--key", type=click.Path(exists=True, path_type=Path), help="TLS private key file"
+)
 @click.option("--no-tls", is_flag=True, help="Disable TLS (not recommended)")
 @click.option("--dev", is_flag=True, help="Development mode (auto-reload, no TLS)")
 def main(
@@ -82,20 +86,39 @@ def main(
     display_host = "localhost" if host == "127.0.0.1" else host
 
     click.echo()
-    click.echo(click.style("╔═══════════════════════════════════════════════════════════╗", fg="cyan"))
-    click.echo(click.style("║              Amplifier Web Server                         ║", fg="cyan"))
-    click.echo(click.style("╚═══════════════════════════════════════════════════════════╝", fg="cyan"))
+    click.echo(
+        click.style(
+            "╔═══════════════════════════════════════════════════════════╗", fg="cyan"
+        )
+    )
+    click.echo(
+        click.style(
+            "║              Amplifier Web Server                         ║", fg="cyan"
+        )
+    )
+    click.echo(
+        click.style(
+            "╚═══════════════════════════════════════════════════════════╝", fg="cyan"
+        )
+    )
     click.echo()
 
-    click.echo(f"  Server URL:  {click.style(f'{protocol}://{display_host}:{port}', fg='green', bold=True)}")
+    click.echo(
+        f"  Server URL:  {click.style(f'{protocol}://{display_host}:{port}', fg='green', bold=True)}"
+    )
     click.echo()
 
     if not no_tls:
         click.echo(f"  TLS Certificate: {ssl_certfile}")
         click.echo(f"  TLS Private Key: {ssl_keyfile}")
         click.echo()
-        click.echo(click.style("  Note: ", fg="yellow") + "Your browser will show a security warning for")
-        click.echo("        self-signed certificates. This is expected - accept it once")
+        click.echo(
+            click.style("  Note: ", fg="yellow")
+            + "Your browser will show a security warning for"
+        )
+        click.echo(
+            "        self-signed certificates. This is expected - accept it once"
+        )
         click.echo("        and it will be remembered.")
         click.echo()
 

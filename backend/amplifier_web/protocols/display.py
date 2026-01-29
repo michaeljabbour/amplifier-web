@@ -39,7 +39,7 @@ class WebDisplaySystem:
         self,
         message: str,
         level: Literal["info", "warning", "error"] = "info",
-        source: str = "hook"
+        source: str = "hook",
     ) -> None:
         """
         Display message to user via WebSocket.
@@ -50,13 +50,15 @@ class WebDisplaySystem:
             source: Message source (for context, e.g., hook name)
         """
         try:
-            await self._websocket.send_json({
-                "type": "display_message",
-                "level": level,
-                "message": message,
-                "source": source,
-                "nesting": self._nesting_depth
-            })
+            await self._websocket.send_json(
+                {
+                    "type": "display_message",
+                    "level": level,
+                    "message": message,
+                    "source": source,
+                    "nesting": self._nesting_depth,
+                }
+            )
         except Exception as e:
             logger.warning(f"Failed to send display message: {e}")
 
@@ -68,8 +70,7 @@ class WebDisplaySystem:
             New WebDisplaySystem with incremented nesting depth
         """
         return WebDisplaySystem(
-            websocket=self._websocket,
-            nesting_depth=self._nesting_depth + 1
+            websocket=self._websocket, nesting_depth=self._nesting_depth + 1
         )
 
     def pop_nesting(self) -> "WebDisplaySystem":
@@ -80,8 +81,7 @@ class WebDisplaySystem:
             New WebDisplaySystem with decremented nesting depth
         """
         return WebDisplaySystem(
-            websocket=self._websocket,
-            nesting_depth=max(0, self._nesting_depth - 1)
+            websocket=self._websocket, nesting_depth=max(0, self._nesting_depth - 1)
         )
 
     @property

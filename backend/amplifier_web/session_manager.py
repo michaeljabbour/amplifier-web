@@ -13,7 +13,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -456,7 +456,8 @@ class SessionManager:
         self,
         session_id: str,
         prompt: str,
-        images: list[str] | None = None,
+        images: list[dict[str, str]] | None = None,
+        attachments: list[dict[str, str]] | None = None,
     ) -> None:
         """
         Execute a prompt in a session.
@@ -467,7 +468,8 @@ class SessionManager:
         Args:
             session_id: Session to execute in
             prompt: User prompt text
-            images: Optional base64-encoded images
+            images: Optional list of images with {data, media_type} keys
+            attachments: Optional list of document attachments with {name, text} keys
 
         Raises:
             KeyError: If session not found
@@ -488,19 +490,37 @@ class SessionManager:
 
                 # Build message content
                 content: Any = prompt
-                if images:
-                    content = [{"type": "text", "text": prompt}]
-                    for img_data in images:
-                        content.append(
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": "image/png",
-                                    "data": img_data,
-                                },
-                            }
-                        )
+                if images or attachments:
+                    content = []
+
+                    # Add extracted text from document attachments first
+                    if attachments:
+                        for attachment in attachments:
+                            content.append(
+                                {
+                                    "type": "text",
+                                    "text": f'<document name="{attachment.get("name", "attachment")}">\n{attachment.get("text", "")}\n</document>',
+                                }
+                            )
+
+                    # Add the user's prompt text
+                    content.append({"type": "text", "text": prompt})
+
+                    # Add images for vision models
+                    if images:
+                        for img in images:
+                            content.append(
+                                {
+                                    "type": "image",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": img.get(
+                                            "media_type", "image/png"
+                                        ),
+                                        "data": img.get("data", ""),
+                                    },
+                                }
+                            )
 
                 # Reset cancellation state before each execution
                 session.coordinator.cancellation.reset()

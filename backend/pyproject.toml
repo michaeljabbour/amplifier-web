@@ -12,6 +12,8 @@ dependencies = [
     "python-multipart>=0.0.12",
     "click>=8.0.0",
     "cryptography>=42.0.0",
+    "pymupdf>=1.24.0",  # PDF text extraction
+    "python-docx>=1.1.0",  # DOCX text extraction
     "amplifier-core",
     "amplifier-foundation",
     "amplifier-module-provider-anthropic",

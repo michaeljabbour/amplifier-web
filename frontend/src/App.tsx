@@ -124,7 +124,11 @@ function App() {
   }, [createSession, defaultBundle, defaultBehaviors, showThinking, defaultCwd, clearMessages, clearSubSessions]);
 
   // Handle sending a message - auto-creates session if needed
-  const handleSendMessage = useCallback((content: string, images?: string[]) => {
+  const handleSendMessage = useCallback((
+    content: string, 
+    images?: Array<{data: string; media_type: string}>,
+    attachments?: Array<{name: string; text: string}>
+  ) => {
     // If no session exists, create one first then send the message
     if (!session.sessionId && !sessionCreationPending) {
       setSessionCreationPending(true);
@@ -137,12 +141,12 @@ function App() {
       // Queue the message to be sent after session is created
       // We'll use a small delay to let the session be established
       setTimeout(() => {
-        sendPrompt(content, images);
+        sendPrompt(content, images, attachments);
         setSessionCreationPending(false);
       }, 500);
       return;
     }
-    sendPrompt(content, images);
+    sendPrompt(content, images, attachments);
   }, [session.sessionId, sessionCreationPending, createSession, defaultBundle, defaultBehaviors, showThinking, defaultCwd, sendPrompt]);
 
   // Handle resuming a saved session
@@ -322,6 +326,7 @@ function App() {
               onSendMessage={handleSendMessage}
               onCancel={cancel}
               isExecuting={session.status === 'executing'}
+              authToken={token || ''}
             />
           </div>
 

@@ -540,6 +540,47 @@ async def remove_custom_behavior(name: str, _: AuthDep):
 
 
 # ============================================================================
+# File Extraction Endpoints
+# ============================================================================
+
+
+class ExtractRequest(BaseModel):
+    """Request to extract text from a file."""
+
+    filename: str
+    content: str  # Base64-encoded file content
+
+
+@app.post("/api/extract")
+async def extract_file(request: ExtractRequest, _: AuthDep):
+    """
+    Extract text from a file (PDF, DOCX, etc.).
+
+    Used for processing document attachments before sending to LLM.
+    Images don't need extraction - they go directly to vision models.
+    """
+    from .extract import extract_text
+
+    result = await extract_text(request.filename, request.content)
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result
+
+
+@app.get("/api/extract/supported")
+async def get_supported_types(_: AuthDep):
+    """Get list of supported file types for extraction and images."""
+    from .extract import SUPPORTED_TYPES, IMAGE_TYPES
+
+    return {
+        "documents": SUPPORTED_TYPES,
+        "images": IMAGE_TYPES,
+    }
+
+
+# ============================================================================
 # Preferences Endpoints
 # ============================================================================
 
@@ -729,10 +770,13 @@ async def websocket_session(websocket: WebSocket):
                     continue
 
                 prompt = data.get("content", "")
-                images = data.get("images")
+                images = data.get("images")  # List of {data, media_type}
+                attachments = data.get("attachments")  # List of {name, text}
 
                 try:
-                    await session_manager.execute(session_id, prompt, images)
+                    await session_manager.execute(
+                        session_id, prompt, images, attachments
+                    )
                 except Exception as e:
                     logger.error(f"Execution error: {e}")
                     # Error already sent via execute()

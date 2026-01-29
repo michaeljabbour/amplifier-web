@@ -64,10 +64,12 @@ def _generate_self_signed_cert() -> tuple[Path, Path]:
     hostname = socket.gethostname()
 
     # Build certificate subject
-    subject = issuer = x509.Name([
-        x509.NameAttribute(NameOID.COMMON_NAME, hostname),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Amplifier Web"),
-    ])
+    subject = issuer = x509.Name(
+        [
+            x509.NameAttribute(NameOID.COMMON_NAME, hostname),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Amplifier Web"),
+        ]
+    )
 
     # Build Subject Alternative Names (SAN)
     san_entries: list[x509.GeneralName] = [
@@ -92,7 +94,9 @@ def _generate_self_signed_cert() -> tuple[Path, Path]:
         .public_key(key.public_key())
         .serial_number(x509.random_serial_number())
         .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
-        .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=365))
+        .not_valid_after(
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=365)
+        )
         .add_extension(
             x509.SubjectAlternativeName(san_entries),
             critical=False,

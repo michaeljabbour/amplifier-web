@@ -760,15 +760,39 @@ Behaviors: ${prevBehaviors} → ${newBehaviors}
 
   // Send prompt
   const sendPrompt = useCallback(
-    (content: string, images?: string[]) => {
+    (
+      content: string, 
+      images?: Array<{data: string; media_type: string}>,
+      attachments?: Array<{name: string; text: string}>
+    ) => {
       setSession({ status: 'executing' });
       setStreaming(true);
+
+      // Build user message content
+      const messageContent: Array<{type: string; content: string; name?: string}> = [];
+      
+      // Add attachment summaries
+      if (attachments && attachments.length > 0) {
+        for (const att of attachments) {
+          messageContent.push({ type: 'attachment', content: `[Document: ${att.name}]`, name: att.name });
+        }
+      }
+      
+      // Add images summaries
+      if (images && images.length > 0) {
+        for (let i = 0; i < images.length; i++) {
+          messageContent.push({ type: 'image', content: `[Image ${i + 1}]` });
+        }
+      }
+      
+      // Add text content
+      messageContent.push({ type: 'text', content });
 
       // Add user message immediately
       addMessage({
         id: generateUUID(),
         role: 'user',
-        content: [{ type: 'text', content }],
+        content: messageContent,
         timestamp: new Date(),
       });
 
@@ -776,6 +800,7 @@ Behaviors: ${prevBehaviors} → ${newBehaviors}
         type: 'prompt',
         content,
         images,
+        attachments,
       });
     },
     [send, setSession, setStreaming, addMessage]

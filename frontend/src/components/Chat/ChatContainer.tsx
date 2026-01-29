@@ -8,15 +8,21 @@ import { MessageList } from './MessageList';
 import { InputArea } from './InputArea';
 
 interface ChatContainerProps {
-  onSendMessage: (content: string, images?: string[]) => void;
+  onSendMessage: (
+    content: string, 
+    images?: Array<{data: string; media_type: string}>,
+    attachments?: Array<{name: string; text: string}>
+  ) => void;
   onCancel: (immediate?: boolean) => void;
   isExecuting: boolean;
+  authToken: string;
 }
 
 export function ChatContainer({
   onSendMessage,
   onCancel,
   isExecuting,
+  authToken,
 }: ChatContainerProps) {
   const { messages, displayMessages } = useSessionStore();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -74,6 +80,7 @@ export function ChatContainer({
             onSend={onSendMessage}
             onCancel={onCancel}
             isExecuting={isExecuting}
+            authToken={authToken}
           />
         </div>
       </div>

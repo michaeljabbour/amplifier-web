@@ -68,6 +68,7 @@ class WebSpawnManager:
             Dict with "output" (response) and "session_id"
         """
         import time
+
         spawn_start_time = time.time()
 
         logger.info(
@@ -119,7 +120,9 @@ class WebSpawnManager:
                 merged_config["session"]["orchestrator"] = {}
             if "config" not in merged_config["session"]["orchestrator"]:
                 merged_config["session"]["orchestrator"]["config"] = {}
-            merged_config["session"]["orchestrator"]["config"].update(orchestrator_config)
+            merged_config["session"]["orchestrator"]["config"].update(
+                orchestrator_config
+            )
 
         # Generate child session ID
         if not sub_session_id:
@@ -147,7 +150,9 @@ class WebSpawnManager:
         # Mount module resolver from parent BEFORE initialize
         parent_resolver = parent_session.coordinator.get("module-source-resolver")
         if parent_resolver:
-            await child_session.coordinator.mount("module-source-resolver", parent_resolver)
+            await child_session.coordinator.mount(
+                "module-source-resolver", parent_resolver
+            )
 
         # Share sys.path additions from parent
         import sys
@@ -209,12 +214,15 @@ class WebSpawnManager:
                 f"[SPAWN] Emitting session:fork event: "
                 f"child_id={sub_session_id}, parent_tool_call_id={parent_tool_call_id}, agent={agent_name}"
             )
-            await parent_hooks.emit("session:fork", {
-                "parent_id": parent_session.session_id,
-                "child_id": sub_session_id,
-                "parent_tool_call_id": parent_tool_call_id,
-                "agent": agent_name,
-            })
+            await parent_hooks.emit(
+                "session:fork",
+                {
+                    "parent_id": parent_session.session_id,
+                    "child_id": sub_session_id,
+                    "parent_tool_call_id": parent_tool_call_id,
+                    "agent": agent_name,
+                },
+            )
 
         # Inject agent's system instruction
         system_instruction = agent_config.get("instruction") or agent_config.get(
@@ -223,7 +231,9 @@ class WebSpawnManager:
         if system_instruction:
             context = child_session.coordinator.get("context")
             if context and hasattr(context, "add_message"):
-                await context.add_message({"role": "system", "content": system_instruction})
+                await context.add_message(
+                    {"role": "system", "content": system_instruction}
+                )
 
         try:
             # Execute instruction in child session
