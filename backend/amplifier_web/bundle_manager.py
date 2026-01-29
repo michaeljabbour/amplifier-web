@@ -203,9 +203,16 @@ class BundleManager:
         )
 
         # Build allowed paths: CWD + standard user directories
+        # Include both uppercase and lowercase variants for macOS/Windows case-insensitivity
+        # (LLM may use ~/downloads instead of ~/Downloads)
         allowed_paths = ["."]  # Current working directory always allowed
+        home = Path.home()
         for std_dir in get_standard_user_directories():
             allowed_paths.append(str(std_dir))
+            # Add lowercase variant if different (for macOS case-insensitive matching)
+            lowercase_name = std_dir.name.lower()
+            if lowercase_name != std_dir.name:
+                allowed_paths.append(str(home / lowercase_name))
 
         # Build denied paths from sensitive directories
         denied_paths = [str(p) for p in get_sensitive_directories()]

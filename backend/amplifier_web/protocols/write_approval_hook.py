@@ -14,10 +14,27 @@ import platform
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from amplifier_core.models import HookResult
+
 if TYPE_CHECKING:
     from .approval import WebApprovalSystem
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_path(path: Path) -> Path:
+    """
+    Normalize a path for comparison, handling case-insensitivity on macOS/Windows.
+
+    On case-insensitive filesystems, ~/downloads and ~/Downloads are the same,
+    but Python's path comparison is case-sensitive. This function resolves to
+    the canonical path (with correct case) if the path exists.
+    """
+    try:
+        # resolve() returns the canonical path with correct case on macOS
+        return path.resolve()
+    except (OSError, RuntimeError):
+        return path
 
 
 def get_standard_user_directories() -> list[Path]:
@@ -157,14 +174,34 @@ class WriteApprovalHook:
         )
 
     def _is_path_allowed(self, path: Path) -> bool:
-        """Check if path is within allowed directories."""
-        resolved = path.resolve()
+        """Check if path is within allowed directories (case-insensitive on macOS/Windows)."""
+        # On macOS/Windows, filesystem is case-insensitive but Python paths are not
+        # Use case-insensitive comparison for path matching
+        system = platform.system()
+        case_insensitive = system in ("Darwin", "Windows")
+
+        try:
+            resolved = path.resolve()
+            resolved_str = str(resolved)
+        except (OSError, RuntimeError):
+            resolved_str = str(path.expanduser())
+
+        if case_insensitive:
+            resolved_str = resolved_str.lower()
 
         for allowed in self.allowed_paths:
             try:
-                resolved.relative_to(allowed.resolve())
-                return True
-            except ValueError:
+                allowed_str = str(allowed.resolve())
+                if case_insensitive:
+                    allowed_str = allowed_str.lower()
+
+                # Check if resolved path starts with allowed path
+                if (
+                    resolved_str.startswith(allowed_str.rstrip("/") + "/")
+                    or resolved_str == allowed_str
+                ):
+                    return True
+            except (OSError, RuntimeError):
                 continue
 
         return False
@@ -256,43 +293,43 @@ class WriteApprovalHook:
             logger.error(f"Error requesting write approval: {e}")
             return False, f"Failed to get approval for {operation}: {str(e)}"
 
-    async def __call__(self, event: str, data: dict[str, Any]) -> dict[str, Any]:
+    async def __call__(self, event: str, data: dict[str, Any]) -> HookResult:
         """
         Hook handler for tool:pre events.
 
         Intercepts write_file/edit_file and requests approval for
         paths outside standard directories.
 
-        Returns a dict with 'action' key:
-        - {"action": "continue"} - allow the tool to proceed
-        - {"action": "deny", "reason": "..."} - block the tool
+        Returns HookResult with action:
+        - action="continue" - allow the tool to proceed
+        - action="deny" with reason - block the tool
         """
         # Only handle tool:pre events
         if event != "tool:pre":
-            return {"action": "continue"}
+            return HookResult(action="continue")
 
         # Only intercept write operations
         tool_name = data.get("tool_name", "")
         if tool_name not in ("write_file", "edit_file", "Write", "Edit"):
-            return {"action": "continue"}
+            return HookResult(action="continue")
 
         # Extract file path from tool input
         tool_input = data.get("tool_input", {})
         file_path = tool_input.get("file_path")
         if not file_path:
-            return {"action": "continue"}
+            return HookResult(action="continue")
 
         # Use existing check_write_permission logic
         operation = "write" if "write" in tool_name.lower() else "edit"
         allowed, error = await self.check_write_permission(file_path, operation)
 
         if not allowed:
-            return {
-                "action": "deny",
-                "reason": error or f"Write to {file_path} was denied",
-            }
+            return HookResult(
+                action="deny",
+                reason=error or f"Write to {file_path} was denied",
+            )
 
-        return {"action": "continue"}
+        return HookResult(action="continue")
 
 
 async def mount(
