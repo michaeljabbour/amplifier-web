@@ -11,7 +11,7 @@ import { ChatContainer } from './components/Chat/ChatContainer';
 import { ConfigPanel } from './components/Config/ConfigPanel';
 import { ApprovalModal } from './components/Tools/ApprovalModal';
 import { LoginModal } from './components/Auth/LoginModal';
-import { SessionList } from './components/Sessions/SessionList';
+import { SessionSidebar } from './components/Sessions/SessionSidebar';
 
 /**
  * Generate a UUID, with fallback for non-secure contexts (HTTP).
@@ -84,9 +84,9 @@ function App() {
   const { token, isAuthenticated, isVerifying, verifyToken } = useAuthStore();
   const { defaultBundle, defaultBehaviors, showThinking, defaultCwd, loadFromServer } = usePrefsStore();
   const [showConfig, setShowConfig] = useState(false);
-  const [showSessionList, setShowSessionList] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
-  const [sessionStarted, setSessionStarted] = useState(false);
+  const [sessionCreationPending, setSessionCreationPending] = useState(false);
 
   // Verify token on mount
   useEffect(() => {
@@ -106,29 +106,46 @@ function App() {
     }
   }, [isAuthenticated, loadFromServer]);
 
-  // Show session list on first load when connected but no session started
-  useEffect(() => {
-    if (isAuthenticated && isConnected && !session.sessionId && !sessionStarted) {
-      setShowSessionList(true);
-    }
-  }, [isAuthenticated, isConnected, session.sessionId, sessionStarted]);
+  // Auto-create session when connected if no session exists and user sends a message
+  // This is handled in handleSendMessage below
 
   // Handle starting a new session
   const handleNewSession = useCallback(() => {
-    setShowSessionList(false);
-    setSessionStarted(true);
+    // Clear any existing messages for fresh start
+    clearMessages();
+    clearSubSessions();
     createSession({
       bundle: defaultBundle,
       behaviors: defaultBehaviors.length > 0 ? defaultBehaviors : undefined,
       showThinking,
       cwd: defaultCwd || undefined,
     });
-  }, [createSession, defaultBundle, defaultBehaviors, showThinking, defaultCwd]);
+  }, [createSession, defaultBundle, defaultBehaviors, showThinking, defaultCwd, clearMessages, clearSubSessions]);
+
+  // Handle sending a message - auto-creates session if needed
+  const handleSendMessage = useCallback((content: string, images?: string[]) => {
+    // If no session exists, create one first then send the message
+    if (!session.sessionId && !sessionCreationPending) {
+      setSessionCreationPending(true);
+      createSession({
+        bundle: defaultBundle,
+        behaviors: defaultBehaviors.length > 0 ? defaultBehaviors : undefined,
+        showThinking,
+        cwd: defaultCwd || undefined,
+      });
+      // Queue the message to be sent after session is created
+      // We'll use a small delay to let the session be established
+      setTimeout(() => {
+        sendPrompt(content, images);
+        setSessionCreationPending(false);
+      }, 500);
+      return;
+    }
+    sendPrompt(content, images);
+  }, [session.sessionId, sessionCreationPending, createSession, defaultBundle, defaultBehaviors, showThinking, defaultCwd, sendPrompt]);
 
   // Handle resuming a saved session
   const handleResumeSession = useCallback(async (saved: SavedSession) => {
-    setShowSessionList(false);
-    setSessionStarted(true);
     // Clear any existing messages
     clearMessages();
     clearSubSessions();
@@ -214,81 +231,86 @@ function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900">
-      {/* Header */}
-      <header className="flex-shrink-0 border-b border-gray-700 bg-gray-800">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-white">Amplifier Web</h1>
-            <span className="text-sm text-gray-400">
-              {session.bundle && `Bundle: ${session.bundle}`}
-            </span>
-            {session.cwd && (
-              <span className="text-xs text-gray-500 font-mono" title={session.cwd}>
-                {formatPath(session.cwd)}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-4">
-            {/* Connection status */}
-            <div className="flex items-center gap-2">
-              <div
-                className={`w-2 h-2 rounded-full ${
-                  isConnected ? 'bg-green-500' : 'bg-red-500'
-                }`}
-              />
-              <span className="text-sm text-gray-400">
-                {session.status === 'executing'
-                  ? 'Running...'
-                  : isConnected
-                  ? 'Connected'
-                  : 'Disconnected'}
-              </span>
+    <div className="h-screen flex bg-gray-900">
+      {/* Session Sidebar */}
+      <SessionSidebar
+        currentSessionId={session.sessionId}
+        onResume={handleResumeSession}
+        onNewSession={handleNewSession}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="flex-shrink-0 border-b border-gray-700 bg-gray-800">
+          <div className="px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-semibold text-white">Amplifier Web</h1>
+              {session.bundle && (
+                <span className="text-sm text-gray-400 px-2 py-0.5 bg-gray-700 rounded">
+                  {session.bundle}
+                </span>
+              )}
+              {session.cwd && (
+                <span className="text-xs text-gray-500 font-mono" title={session.cwd}>
+                  {formatPath(session.cwd)}
+                </span>
+              )}
             </div>
+            <div className="flex items-center gap-4">
+              {/* Connection status */}
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    isConnected ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                />
+                <span className="text-sm text-gray-400">
+                  {session.status === 'executing'
+                    ? 'Running...'
+                    : isConnected
+                    ? 'Connected'
+                    : 'Disconnected'}
+                </span>
+              </div>
 
-            {/* Sessions button */}
-            <button
-              onClick={() => setShowSessionList(true)}
-              className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-md transition-colors"
-            >
-              Sessions
-            </button>
-
-            {/* Config button */}
-            <button
-              onClick={() => setShowConfig(!showConfig)}
-              className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-md transition-colors"
-            >
-              Configure
-            </button>
+              {/* Config button */}
+              <button
+                onClick={() => setShowConfig(!showConfig)}
+                className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-md transition-colors"
+              >
+                Configure
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Chat area */}
-        <div className="flex-1 flex flex-col">
-          <ChatContainer
-            onSendMessage={sendPrompt}
-            onCancel={cancel}
-            isExecuting={session.status === 'executing'}
-          />
-        </div>
-
-        {/* Config panel (slide-out) */}
-        {showConfig && (
-          <div className="w-80 border-l border-gray-700 bg-gray-800 overflow-y-auto">
-            <ConfigPanel
-              onClose={() => setShowConfig(false)}
-              onCreateSession={(config) => {
-                setSessionStarted(true);
-                createSession(config);
-                // Don't close config panel - let user see session was created
-              }}
+        {/* Chat and config */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Chat area */}
+          <div className="flex-1 flex flex-col">
+            <ChatContainer
+              onSendMessage={handleSendMessage}
+              onCancel={cancel}
+              isExecuting={session.status === 'executing'}
             />
           </div>
-        )}
+
+          {/* Config panel (slide-out) */}
+          {showConfig && (
+            <div className="w-80 border-l border-gray-700 bg-gray-800 overflow-y-auto">
+              <ConfigPanel
+                onClose={() => setShowConfig(false)}
+                onCreateSession={(config) => {
+                  createSession(config);
+                  // Don't close config panel - let user see session was created
+                }}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Approval modal */}
@@ -296,15 +318,6 @@ function App() {
         <ApprovalModal
           approval={pendingApproval}
           onResponse={(choice) => sendApproval(pendingApproval.id, choice)}
-        />
-      )}
-
-      {/* Session list modal */}
-      {showSessionList && (
-        <SessionList
-          onResume={handleResumeSession}
-          onNewSession={handleNewSession}
-          onClose={() => setShowSessionList(false)}
         />
       )}
     </div>

@@ -1,5 +1,8 @@
 /**
  * Login modal for entering the auth token.
+ * 
+ * Automatically attempts to fetch the token from the local backend
+ * when running on localhost, eliminating the need for manual entry.
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -13,6 +16,36 @@ export function LoginModal({ onSuccess }: LoginModalProps) {
   const { setToken, verifyToken, error, isVerifying, setError } = useAuthStore();
   const [inputToken, setInputToken] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const [autoFetching, setAutoFetching] = useState(false);
+
+  // Try to auto-fetch token from local backend on mount
+  useEffect(() => {
+    const tryAutoFetch = async () => {
+      setAutoFetching(true);
+      try {
+        const response = await fetch('/api/auth/local-token');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.token) {
+            // Auto-set and verify the token
+            setToken(data.token);
+            await new Promise(resolve => setTimeout(resolve, 50));
+            const valid = await verifyToken();
+            if (valid) {
+              onSuccess?.();
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        // Auto-fetch failed, user will need to enter manually
+        console.log('Auto-fetch token not available, manual entry required');
+      }
+      setAutoFetching(false);
+    };
+    
+    tryAutoFetch();
+  }, [setToken, verifyToken, onSuccess]);
 
   // Clear errors when input changes
   useEffect(() => {
@@ -42,6 +75,21 @@ export function LoginModal({ onSuccess }: LoginModalProps) {
   }, [inputToken, setToken, verifyToken, onSuccess]);
 
   const displayError = localError || error;
+
+  // Show loading while auto-fetching
+  if (autoFetching) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div className="bg-gray-800 rounded-lg shadow-2xl max-w-md w-full mx-4 p-6">
+          <div className="text-center">
+            <div className="animate-spin h-8 w-8 border-4 border-amplifier-500 border-t-transparent rounded-full mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-white mb-2">Connecting...</h2>
+            <p className="text-gray-400">Authenticating with local server</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">

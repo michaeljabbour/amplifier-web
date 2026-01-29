@@ -13,12 +13,20 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
+from fastapi import (
+    FastAPI,
+    WebSocket,
+    WebSocketDisconnect,
+    HTTPException,
+    Query,
+    Request,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .auth import AuthDep, verify_websocket_token
+from .auth import AuthDep, verify_websocket_token, get_or_create_token
 from .bundle_manager import BundleManager
 from .security import validate_session_cwd
 from .session_manager import SessionManager
@@ -180,6 +188,31 @@ class PromptRequest(BaseModel):
 async def health_check():
     """Health check endpoint (no auth required)."""
     return {"status": "healthy", "version": "0.1.0"}
+
+
+@app.get("/api/auth/local-token")
+async def get_local_token(request: Request):
+    """
+    Auto-provide auth token for localhost connections.
+
+    This endpoint allows the frontend to automatically authenticate
+    when running on the same machine as the backend, improving UX
+    by eliminating the need to manually copy/paste the token.
+
+    Security: Only responds to requests from localhost (127.0.0.1 or ::1).
+    """
+    # Check if request is from localhost
+    client_host = request.client.host if request.client else None
+    localhost_addresses = {"127.0.0.1", "::1", "localhost"}
+
+    if client_host not in localhost_addresses:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token auto-fetch only available for localhost connections",
+        )
+
+    token = get_or_create_token()
+    return {"token": token}
 
 
 @app.get("/api/auth/verify")
