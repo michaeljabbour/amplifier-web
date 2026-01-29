@@ -244,45 +244,71 @@ function App() {
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex-shrink-0 border-b border-gray-700 bg-gray-800">
-          <div className="px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold text-white">Amplifier Web</h1>
+        {/* Modern slim header */}
+        <header className="flex-shrink-0 h-10 border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-sm">
+          <div className="h-full px-3 flex items-center justify-between">
+            {/* Left: Logo + Session info */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">A</span>
+                </div>
+                <span className="text-sm font-medium text-gray-200">Amplifier</span>
+              </div>
               {session.bundle && (
-                <span className="text-sm text-gray-400 px-2 py-0.5 bg-gray-700 rounded">
-                  {session.bundle}
-                </span>
+                <>
+                  <span className="text-gray-600">/</span>
+                  <span className="text-xs text-gray-400 px-1.5 py-0.5 bg-gray-800 rounded">
+                    {session.bundle}
+                  </span>
+                </>
               )}
               {session.cwd && (
-                <span className="text-xs text-gray-500 font-mono" title={session.cwd}>
-                  {formatPath(session.cwd)}
-                </span>
+                <>
+                  <span className="text-gray-600">·</span>
+                  <span className="text-xs text-gray-500 font-mono truncate max-w-[200px]" title={session.cwd}>
+                    {formatPath(session.cwd, 25)}
+                  </span>
+                </>
               )}
             </div>
-            <div className="flex items-center gap-4">
-              {/* Connection status */}
-              <div className="flex items-center gap-2">
+
+            {/* Right: Status + Actions */}
+            <div className="flex items-center gap-2">
+              {/* Status indicator */}
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-800/50">
                 <div
-                  className={`w-2 h-2 rounded-full ${
-                    isConnected ? 'bg-green-500' : 'bg-red-500'
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    session.status === 'executing'
+                      ? 'bg-yellow-500 animate-pulse'
+                      : isConnected
+                      ? 'bg-green-500'
+                      : 'bg-red-500'
                   }`}
                 />
-                <span className="text-sm text-gray-400">
+                <span className="text-xs text-gray-400">
                   {session.status === 'executing'
-                    ? 'Running...'
+                    ? 'Running'
                     : isConnected
-                    ? 'Connected'
-                    : 'Disconnected'}
+                    ? 'Ready'
+                    : 'Offline'}
                 </span>
               </div>
 
               {/* Config button */}
               <button
                 onClick={() => setShowConfig(!showConfig)}
-                className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-md transition-colors"
+                className={`p-1.5 rounded transition-colors ${
+                  showConfig 
+                    ? 'bg-gray-700 text-white' 
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+                title="Settings"
               >
-                Configure
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
               </button>
             </div>
           </div>
@@ -299,10 +325,8 @@ function App() {
             />
           </div>
 
-          {/* Artifacts panel */}
-          <div className="w-72">
-            <ArtifactsPanel />
-          </div>
+          {/* Artifacts panel - self-managing width and visibility */}
+          <ArtifactsPanel />
 
           {/* Config panel (slide-out) */}
           {showConfig && (

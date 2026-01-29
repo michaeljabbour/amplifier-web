@@ -916,3 +916,28 @@ class SessionManager:
         except Exception as e:
             logger.error(f"Failed to delete session {session_id}: {e}")
             return False
+
+    async def rename_session(self, session_id: str, new_name: str) -> bool:
+        """Rename a saved session."""
+        session_dir = self._storage_dir / session_id
+        metadata_file = session_dir / "metadata.json"
+
+        if not metadata_file.exists():
+            return False
+
+        try:
+            import json
+
+            with open(metadata_file) as f:
+                metadata = json.load(f)
+
+            metadata["name"] = new_name
+            metadata["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+            with open(metadata_file, "w") as f:
+                json.dump(metadata, f, indent=2)
+
+            return True
+        except Exception as e:
+            logger.error(f"Failed to rename session {session_id}: {e}")
+            return False

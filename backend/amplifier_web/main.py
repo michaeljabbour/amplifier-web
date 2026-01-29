@@ -345,6 +345,25 @@ async def get_session_transcript(session_id: str, _: AuthDep):
     return {"session_id": session_id, "transcript": transcript}
 
 
+class RenameSessionRequest(BaseModel):
+    """Request to rename a session."""
+
+    name: str
+
+
+@app.put("/api/sessions/history/{session_id}/rename")
+async def rename_session(session_id: str, request: RenameSessionRequest, _: AuthDep):
+    """Rename a saved session."""
+    if not session_manager:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    success = await session_manager.rename_session(session_id, request.name)
+    if not success:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {"success": True, "session_id": session_id, "name": request.name}
+
+
 # ============================================================================
 # Custom Bundle Endpoints
 # ============================================================================
