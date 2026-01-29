@@ -256,6 +256,44 @@ class WriteApprovalHook:
             logger.error(f"Error requesting write approval: {e}")
             return False, f"Failed to get approval for {operation}: {str(e)}"
 
+    async def __call__(self, event: str, data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Hook handler for tool:pre events.
+
+        Intercepts write_file/edit_file and requests approval for
+        paths outside standard directories.
+
+        Returns a dict with 'action' key:
+        - {"action": "continue"} - allow the tool to proceed
+        - {"action": "deny", "reason": "..."} - block the tool
+        """
+        # Only handle tool:pre events
+        if event != "tool:pre":
+            return {"action": "continue"}
+
+        # Only intercept write operations
+        tool_name = data.get("tool_name", "")
+        if tool_name not in ("write_file", "edit_file", "Write", "Edit"):
+            return {"action": "continue"}
+
+        # Extract file path from tool input
+        tool_input = data.get("tool_input", {})
+        file_path = tool_input.get("file_path")
+        if not file_path:
+            return {"action": "continue"}
+
+        # Use existing check_write_permission logic
+        operation = "write" if "write" in tool_name.lower() else "edit"
+        allowed, error = await self.check_write_permission(file_path, operation)
+
+        if not allowed:
+            return {
+                "action": "deny",
+                "reason": error or f"Write to {file_path} was denied",
+            }
+
+        return {"action": "continue"}
+
 
 async def mount(
     coordinator: Any, config: dict[str, Any] | None = None

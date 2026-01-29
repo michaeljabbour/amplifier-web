@@ -314,6 +314,23 @@ class SessionManager:
                 f"Registered web streaming hook for {len(events_to_capture)} events"
             )
 
+            # Register write approval hook for tool:pre events
+            # This intercepts write_file/edit_file and asks user approval for
+            # paths outside standard directories (Downloads, Documents, Desktop, CWD)
+            from .protocols.write_approval_hook import WriteApprovalHook
+
+            write_approval_hook = WriteApprovalHook(
+                approval_system=active.approval,
+                cwd=Path(active.metadata.cwd) if active.metadata.cwd else None,
+            )
+            hook_registry.register(
+                event="tool:pre",
+                handler=write_approval_hook,
+                priority=5,  # Run before other hooks (lower = earlier)
+                name="write-approval",
+            )
+            logger.info("Registered write approval hook for tool:pre events")
+
         # Register session spawning capabilities for agent delegation
         # This enables the task tool to spawn sub-agents
         self._register_session_spawning(session, active.prepared)
