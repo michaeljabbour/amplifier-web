@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BundleInfo:
     """Minimal info about a bundle for API responses."""
+
     name: str
     description: str = ""
     is_custom: bool = False
@@ -89,7 +90,11 @@ class BundleManager:
 
         # Add submodules to sys.path if available
         if self._modules_dir:
-            for subdir in ["amplifier-core", "amplifier-foundation", "amplifier-app-cli"]:
+            for subdir in [
+                "amplifier-core",
+                "amplifier-foundation",
+                "amplifier-app-cli",
+            ]:
                 module_path = self._modules_dir / subdir
                 if module_path.exists() and str(module_path) not in sys.path:
                     sys.path.insert(0, str(module_path))
@@ -113,7 +118,9 @@ class BundleManager:
     def registry(self) -> "BundleRegistry":
         """Get the bundle registry. Must call initialize() first."""
         if not self._registry:
-            raise RuntimeError("BundleManager not initialized. Call initialize() first.")
+            raise RuntimeError(
+                "BundleManager not initialized. Call initialize() first."
+            )
         return self._registry
 
     async def load_and_prepare(
@@ -174,7 +181,9 @@ class BundleManager:
                     behavior_ref = f"foundation:behaviors/{behavior_name}"
 
                 try:
-                    behavior_bundle = await load_bundle(behavior_ref, registry=self._registry)
+                    behavior_bundle = await load_bundle(
+                        behavior_ref, registry=self._registry
+                    )
                     bundle = bundle.compose(behavior_bundle)
                     logger.info(f"Composed behavior: {behavior_name}")
                 except Exception as e:
@@ -183,6 +192,44 @@ class BundleManager:
         # Note: Working directory is now handled via the unified session.working_dir
         # coordinator capability. Pass session_cwd to create_session() and all modules
         # will query the capability automatically. No config injection needed.
+
+        # Configure tool-filesystem to allow writes to home directory
+        # By default, write_file only allows writes within CWD (security measure).
+        # For web UI, users expect to be able to write to common locations like ~/Downloads.
+        # We expand allowed_write_paths to include the user's home directory.
+        home_dir = str(Path.home())
+        filesystem_config_bundle = Bundle(
+            name="web-filesystem-config",
+            version="1.0.0",
+            tools=[
+                {
+                    "module": "tool-filesystem",
+                    "config": {
+                        "allowed_write_paths": [
+                            ".",  # Current working directory
+                            home_dir,  # User's home directory (for ~/Downloads, etc.)
+                        ],
+                        "denied_write_paths": [
+                            # Block sensitive system directories
+                            "/etc",
+                            "/var",
+                            "/usr",
+                            "/bin",
+                            "/sbin",
+                            "/System",
+                            "/Library",
+                            f"{home_dir}/Library",  # macOS system prefs
+                            f"{home_dir}/.ssh",  # SSH keys
+                            f"{home_dir}/.gnupg",  # GPG keys
+                        ],
+                    },
+                }
+            ],
+        )
+        bundle = bundle.compose(filesystem_config_bundle)
+        logger.info(
+            f"Configured tool-filesystem: allowed_write_paths includes {home_dir}"
+        )
 
         # Enable debug and raw_debug for full event visibility in web console
         debug_bundle = Bundle(
@@ -232,15 +279,17 @@ class BundleManager:
                 provider = Bundle(
                     name="auto-provider-anthropic",
                     version="1.0.0",
-                    providers=[{
-                        "module": "provider-anthropic",
-                        "source": "git+https://github.com/microsoft/amplifier-module-provider-anthropic@main",
-                        "config": {
-                            "default_model": "claude-sonnet-4-5",
-                            "debug": True,
-                            "raw_debug": True,
+                    providers=[
+                        {
+                            "module": "provider-anthropic",
+                            "source": "git+https://github.com/microsoft/amplifier-module-provider-anthropic@main",
+                            "config": {
+                                "default_model": "claude-sonnet-4-5",
+                                "debug": True,
+                                "raw_debug": True,
+                            },
                         }
-                    }],
+                    ],
                 )
                 logger.info("Auto-detected Anthropic provider from environment")
                 return provider
@@ -253,22 +302,26 @@ class BundleManager:
                 provider = Bundle(
                     name="auto-provider-openai",
                     version="1.0.0",
-                    providers=[{
-                        "module": "provider-openai",
-                        "source": "git+https://github.com/microsoft/amplifier-module-provider-openai@main",
-                        "config": {
-                            "default_model": "gpt-4o",
-                            "debug": True,
-                            "raw_debug": True,
+                    providers=[
+                        {
+                            "module": "provider-openai",
+                            "source": "git+https://github.com/microsoft/amplifier-module-provider-openai@main",
+                            "config": {
+                                "default_model": "gpt-4o",
+                                "debug": True,
+                                "raw_debug": True,
+                            },
                         }
-                    }],
+                    ],
                 )
                 logger.info("Auto-detected OpenAI provider from environment")
                 return provider
             except Exception as e:
                 logger.warning(f"Failed to create OpenAI provider: {e}")
 
-        logger.warning("No API key found in environment (ANTHROPIC_API_KEY or OPENAI_API_KEY)")
+        logger.warning(
+            "No API key found in environment (ANTHROPIC_API_KEY or OPENAI_API_KEY)"
+        )
         return None
 
     async def list_bundles(self) -> list[BundleInfo]:
@@ -296,12 +349,14 @@ class BundleManager:
         # Add custom bundles from preferences
         prefs = load_preferences()
         for custom in prefs.custom_bundles:
-            bundles.append(BundleInfo(
-                name=custom.get("name", "unknown"),
-                description=custom.get("description", ""),
-                is_custom=True,
-                uri=custom.get("uri"),
-            ))
+            bundles.append(
+                BundleInfo(
+                    name=custom.get("name", "unknown"),
+                    description=custom.get("description", ""),
+                    is_custom=True,
+                    uri=custom.get("uri"),
+                )
+            )
 
         return bundles
 
@@ -486,7 +541,9 @@ class BundleManager:
         # Use bundle name if not provided
         bundle_info = validation["bundle_info"]
         final_name = name or bundle_info.get("name", "custom-bundle")
-        final_description = description or bundle_info.get("description", "Custom bundle")
+        final_description = description or bundle_info.get(
+            "description", "Custom bundle"
+        )
 
         # Save to preferences
         from .preferences import add_custom_bundle
