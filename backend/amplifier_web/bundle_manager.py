@@ -193,11 +193,23 @@ class BundleManager:
         # coordinator capability. Pass session_cwd to create_session() and all modules
         # will query the capability automatically. No config injection needed.
 
-        # Configure tool-filesystem to allow writes to home directory
+        # Configure tool-filesystem with standard user directories (cross-platform)
         # By default, write_file only allows writes within CWD (security measure).
-        # For web UI, users expect to be able to write to common locations like ~/Downloads.
-        # We expand allowed_write_paths to include the user's home directory.
-        home_dir = str(Path.home())
+        # For web UI, users expect to write to common locations like ~/Downloads.
+        # We enable standard directories and block sensitive system paths.
+        from .protocols.write_approval_hook import (
+            get_sensitive_directories,
+            get_standard_user_directories,
+        )
+
+        # Build allowed paths: CWD + standard user directories
+        allowed_paths = ["."]  # Current working directory always allowed
+        for std_dir in get_standard_user_directories():
+            allowed_paths.append(str(std_dir))
+
+        # Build denied paths from sensitive directories
+        denied_paths = [str(p) for p in get_sensitive_directories()]
+
         filesystem_config_bundle = Bundle(
             name="web-filesystem-config",
             version="1.0.0",
@@ -205,30 +217,15 @@ class BundleManager:
                 {
                     "module": "tool-filesystem",
                     "config": {
-                        "allowed_write_paths": [
-                            ".",  # Current working directory
-                            home_dir,  # User's home directory (for ~/Downloads, etc.)
-                        ],
-                        "denied_write_paths": [
-                            # Block sensitive system directories
-                            "/etc",
-                            "/var",
-                            "/usr",
-                            "/bin",
-                            "/sbin",
-                            "/System",
-                            "/Library",
-                            f"{home_dir}/Library",  # macOS system prefs
-                            f"{home_dir}/.ssh",  # SSH keys
-                            f"{home_dir}/.gnupg",  # GPG keys
-                        ],
+                        "allowed_write_paths": allowed_paths,
+                        "denied_write_paths": denied_paths,
                     },
                 }
             ],
         )
         bundle = bundle.compose(filesystem_config_bundle)
         logger.info(
-            f"Configured tool-filesystem: allowed_write_paths includes {home_dir}"
+            f"Configured tool-filesystem: {len(allowed_paths)} allowed paths, {len(denied_paths)} denied paths"
         )
 
         # Enable debug and raw_debug for full event visibility in web console
