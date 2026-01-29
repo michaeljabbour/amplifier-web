@@ -12,6 +12,7 @@ import { ConfigPanel } from './components/Config/ConfigPanel';
 import { ApprovalModal } from './components/Tools/ApprovalModal';
 import { LoginModal } from './components/Auth/LoginModal';
 import { SessionSidebar } from './components/Sessions/SessionSidebar';
+import { ArtifactsPanel } from './components/Artifacts/ArtifactsPanel';
 
 /**
  * Generate a UUID, with fallback for non-secure contexts (HTTP).
@@ -296,6 +297,11 @@ function App() {
               onCancel={cancel}
               isExecuting={session.status === 'executing'}
             />
+          </div>
+
+          {/* Artifacts panel */}
+          <div className="w-72">
+            <ArtifactsPanel />
           </div>
 
           {/* Config panel (slide-out) */}

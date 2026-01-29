@@ -567,6 +567,33 @@ async def update_preferences(updates: PreferencesUpdate, _: AuthDep):
 
 
 # ============================================================================
+# Artifacts API
+# ============================================================================
+
+
+@app.get("/api/sessions/{session_id}/artifacts")
+async def get_session_artifacts(session_id: str, _: AuthDep):
+    """Get all file artifacts for a session."""
+    from .database import get_database
+
+    db = get_database()
+    artifacts = db.get_artifacts(session_id)
+    return {"session_id": session_id, "artifacts": artifacts}
+
+
+@app.get("/api/artifacts/{artifact_id}")
+async def get_artifact(artifact_id: int, _: AuthDep):
+    """Get a specific artifact with full diff."""
+    from .database import get_database
+
+    db = get_database()
+    artifact = db.get_artifact(artifact_id)
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    return artifact
+
+
+# ============================================================================
 # WebSocket Endpoint
 # ============================================================================
 

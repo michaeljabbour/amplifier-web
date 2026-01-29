@@ -162,7 +162,7 @@ class SessionManager:
             existing_cwd = existing_metadata.get("cwd")
             if existing_cwd and isinstance(existing_cwd, str):
                 existing_cwd = Path(existing_cwd)
-            
+
             metadata = SessionMetadata(
                 session_id=session_id,
                 bundle_name=bundle_name,
@@ -237,6 +237,9 @@ class SessionManager:
             display_system=active.display,
             session_cwd=active.metadata.cwd,  # Pass cwd so tools use correct directory
         )
+
+        # Set session ID on streaming hook for artifact tracking
+        active.streaming_hook.set_session_id(active.session_id)
 
         # Register streaming hook with the hook registry
         # Use coordinator.hooks directly (same pattern as hooks-streaming-ui module)
@@ -688,10 +691,10 @@ class SessionManager:
         """Load existing session metadata from storage if it exists."""
         session_dir = self._storage_dir / session_id
         metadata_path = session_dir / "metadata.json"
-        
+
         if not metadata_path.exists():
             return None
-        
+
         try:
             data = json.loads(metadata_path.read_text())
             # Parse created_at back to datetime if it exists
@@ -699,21 +702,24 @@ class SessionManager:
                 # Handle ISO format with or without Z suffix
                 created_str = data["created_at"].rstrip("Z")
                 data["created_at"] = datetime.fromisoformat(created_str)
-            
+
             # Recalculate turn_count from transcript (metadata may be stale)
             transcript_path = session_dir / "transcript.jsonl"
             if transcript_path.exists():
                 try:
                     user_turns = sum(
-                        1 for line in transcript_path.read_text().splitlines()
+                        1
+                        for line in transcript_path.read_text().splitlines()
                         if line and '"role": "user"' in line
                     )
                     if user_turns > data.get("turn_count", 0):
                         data["turn_count"] = user_turns
-                        logger.info(f"Recalculated turn_count for {session_id}: {user_turns}")
+                        logger.info(
+                            f"Recalculated turn_count for {session_id}: {user_turns}"
+                        )
                 except Exception as e:
                     logger.warning(f"Failed to recalculate turn_count: {e}")
-            
+
             return data
         except (json.JSONDecodeError, OSError, ValueError) as e:
             logger.warning(f"Failed to load session metadata for {session_id}: {e}")
@@ -864,7 +870,8 @@ class SessionManager:
                         if transcript_path.exists():
                             try:
                                 user_turns = sum(
-                                    1 for line in transcript_path.read_text().splitlines()
+                                    1
+                                    for line in transcript_path.read_text().splitlines()
                                     if line and '"role": "user"' in line
                                 )
                                 if user_turns > 0:
@@ -872,7 +879,7 @@ class SessionManager:
                                     metadata["turn_count"] = turn_count
                             except Exception:
                                 pass  # Fall back to metadata value
-                    
+
                     # Filter by minimum turn count
                     if turn_count < min_turns:
                         continue
