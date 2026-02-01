@@ -45,6 +45,7 @@ class WebSpawnManager:
         parent_messages: list[dict] | None = None,
         provider_override: str | None = None,
         model_override: str | None = None,
+        provider_preferences: list | None = None,
     ) -> dict[str, Any]:
         """
         Spawn sub-session with event forwarding for web streaming.
@@ -68,6 +69,7 @@ class WebSpawnManager:
             Dict with "output" (response) and "session_id"
         """
         import time
+
         spawn_start_time = time.time()
 
         logger.info(
@@ -111,6 +113,24 @@ class WebSpawnManager:
                 merged_config, provider_override, model_override
             )
 
+        # Apply provider preferences if specified (for model/provider selection)
+        if provider_preferences:
+            try:
+                from amplifier_foundation.spawn_utils import (
+                    apply_provider_preferences_with_resolution,
+                )
+
+                merged_config = await apply_provider_preferences_with_resolution(
+                    merged_config,
+                    provider_preferences,
+                    parent_session.coordinator,
+                )
+            except ImportError:
+                logger.warning(
+                    "Could not apply provider_preferences: "
+                    "amplifier_foundation.spawn_utils not available"
+                )
+
         # Apply orchestrator config override if specified
         if orchestrator_config:
             if "session" not in merged_config:
@@ -119,7 +139,9 @@ class WebSpawnManager:
                 merged_config["session"]["orchestrator"] = {}
             if "config" not in merged_config["session"]["orchestrator"]:
                 merged_config["session"]["orchestrator"]["config"] = {}
-            merged_config["session"]["orchestrator"]["config"].update(orchestrator_config)
+            merged_config["session"]["orchestrator"]["config"].update(
+                orchestrator_config
+            )
 
         # Generate child session ID
         if not sub_session_id:
@@ -147,7 +169,9 @@ class WebSpawnManager:
         # Mount module resolver from parent BEFORE initialize
         parent_resolver = parent_session.coordinator.get("module-source-resolver")
         if parent_resolver:
-            await child_session.coordinator.mount("module-source-resolver", parent_resolver)
+            await child_session.coordinator.mount(
+                "module-source-resolver", parent_resolver
+            )
 
         # Share sys.path additions from parent
         import sys
@@ -209,12 +233,15 @@ class WebSpawnManager:
                 f"[SPAWN] Emitting session:fork event: "
                 f"child_id={sub_session_id}, parent_tool_call_id={parent_tool_call_id}, agent={agent_name}"
             )
-            await parent_hooks.emit("session:fork", {
-                "parent_id": parent_session.session_id,
-                "child_id": sub_session_id,
-                "parent_tool_call_id": parent_tool_call_id,
-                "agent": agent_name,
-            })
+            await parent_hooks.emit(
+                "session:fork",
+                {
+                    "parent_id": parent_session.session_id,
+                    "child_id": sub_session_id,
+                    "parent_tool_call_id": parent_tool_call_id,
+                    "agent": agent_name,
+                },
+            )
 
         # Inject agent's system instruction
         system_instruction = agent_config.get("instruction") or agent_config.get(
@@ -223,7 +250,9 @@ class WebSpawnManager:
         if system_instruction:
             context = child_session.coordinator.get("context")
             if context and hasattr(context, "add_message"):
-                await context.add_message({"role": "system", "content": system_instruction})
+                await context.add_message(
+                    {"role": "system", "content": system_instruction}
+                )
 
         try:
             # Execute instruction in child session

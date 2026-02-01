@@ -393,6 +393,7 @@ class SessionManager:
             provider_override: str | None = None,
             model_override: str | None = None,
             parent_tool_call_id: str | None = None,
+            provider_preferences: list | None = None,
         ) -> dict:
             return await spawn_manager.spawn(
                 agent_name=agent_name,
@@ -408,6 +409,7 @@ class SessionManager:
                 parent_messages=parent_messages,
                 provider_override=provider_override,
                 model_override=model_override,
+                provider_preferences=provider_preferences,
             )
 
         # Try to import resume capability from amplifier-app-cli
