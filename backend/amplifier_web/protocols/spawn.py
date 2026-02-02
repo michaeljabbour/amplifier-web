@@ -45,6 +45,7 @@ class WebSpawnManager:
         parent_messages: list[dict] | None = None,
         provider_override: str | None = None,
         model_override: str | None = None,
+        provider_preferences: list | None = None,
     ) -> dict[str, Any]:
         """
         Spawn sub-session with event forwarding for web streaming.
@@ -111,6 +112,24 @@ class WebSpawnManager:
             merged_config = self._apply_provider_override(
                 merged_config, provider_override, model_override
             )
+
+        # Apply provider preferences if specified (for model/provider selection)
+        if provider_preferences:
+            try:
+                from amplifier_foundation.spawn_utils import (
+                    apply_provider_preferences_with_resolution,
+                )
+
+                merged_config = await apply_provider_preferences_with_resolution(
+                    merged_config,
+                    provider_preferences,
+                    parent_session.coordinator,
+                )
+            except ImportError:
+                logger.warning(
+                    "Could not apply provider_preferences: "
+                    "amplifier_foundation.spawn_utils not available"
+                )
 
         # Apply orchestrator config override if specified
         if orchestrator_config:
